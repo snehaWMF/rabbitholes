@@ -1,11 +1,10 @@
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 
 /**
  * Session-scoped rabbit hole: the chain of articles a reader followed by
- * clicking links. Each page load starts a new hole on the start article; the
- * reader's choice to end tracking lives in `sessionStorage` and lasts the tab.
+ * clicking links. Every page load starts with tracking off; the reader
+ * selects Start to begin a hole on the article they're reading.
  */
-const STORAGE_KEY = 'protowiki:rabbit-hole'
 
 /**
  * No scrolling for this long counts as idle. Override for demos with
@@ -21,43 +20,16 @@ function idleAfterMs() {
 /** Input that means the reader is still reading this page. */
 const ACTIVITY_EVENTS = ['scroll', 'wheel', 'touchmove', 'keydown'] as const
 
-interface StoredState {
-  trail: string[]
-  /** Milliseconds spent reading each trail entry, banked when the reader leaves it. */
-  times: number[]
-  /** Milliseconds spent idle on each trail entry — not counted in `times`. */
-  idles: number[]
-  current: number
-  ended: boolean
-}
-
-function load(): StoredState | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as StoredState) : null
-  } catch {
-    return null
-  }
-}
-
-function save(state: StoredState) {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch {
-    // Private mode / blocked storage — the trail just won't survive a reload.
-  }
-}
-
 export function useRabbitHole(startArticle: string) {
-  const stored = load()
-  // Every visit starts fresh on `startArticle`; only the stop/start choice carries over.
   const trail = ref<string[]>([startArticle])
+  /** Milliseconds spent reading each trail entry, banked when the reader leaves it. */
   const times = ref<number[]>([0])
+  /** Milliseconds spent idle on each trail entry — not counted in `times`. */
   const idles = ref<number[]>([0])
   /** Index into `trail` of the article being read — always the newest step. */
   const current = ref(0)
-  /** Tracking ended: no trail until it's started again. */
-  const ended = ref(stored?.ended ?? false)
+  /** Tracking off: no trail until the reader selects Start. Every visit starts off. */
+  const ended = ref(true)
 
   /** Article to render — tracked or not. */
   const article = ref(startArticle)
@@ -139,20 +111,6 @@ export function useRabbitHole(startArticle: string) {
       window.removeEventListener(type, markActivity)
     }
   })
-
-  watch(
-    [trail, times, idles, current, ended],
-    () => {
-      save({
-        trail: trail.value,
-        times: times.value,
-        idles: idles.value,
-        current: current.value,
-        ended: ended.value,
-      })
-    },
-    { deep: true, flush: 'sync' },
-  )
 
   /**
    * Reader followed a link, searched, or picked an earlier step in the trail.
