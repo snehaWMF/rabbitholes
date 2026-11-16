@@ -7,12 +7,13 @@ definePage({
   },
 })
 
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { CdxButton, CdxDialog, CdxToastContainer, useToast } from '@wikimedia/codex'
 
 import ArticleLive from '@/components/article/ArticleLive.vue'
+import ChromeHeader, { type HeaderItem } from '@/components/chrome/ChromeHeader.vue'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
 import { provideChromeSearchHandlers } from '@/composables/useChromeSearch'
 import { useConfig } from '@/composables/useConfig'
@@ -28,6 +29,7 @@ import MobileTrailBar from './MobileTrailBar.vue'
 import PrototypeSettings from './PrototypeSettings.vue'
 import RabbitHoleTrail from './RabbitHoleTrail.vue'
 import TableOfContents, { type TocSection } from './TableOfContents.vue'
+import UserMenu from './UserMenu.vue'
 import { formatDuration } from './formatDuration'
 import { useClickstream } from './useClickstream'
 import { useRabbitHole } from './useRabbitHole'
@@ -41,6 +43,39 @@ const isLoggedIn = computed(() => user.value !== 'logged-out')
 /* Prototype settings: show or hide each sidebar module. Both show on every load. */
 const showTrail = ref(true)
 const showPaths = ref(true)
+/* Opened from "Prototype settings" in the user menu. */
+const settingsOpen = ref(false)
+
+const USERNAME = 'Username'
+
+/*
+ * Header user menu, with Prototype settings in it. Vector takes it in a slot;
+ * Minerva takes its right-hand icons as a list, so rebuild that list with the
+ * menu (and its arrow) in place of the plain user icon.
+ */
+const MobileUserMenu = markRaw(
+  defineComponent({
+    name: 'MobileUserMenu',
+    setup() {
+      return () =>
+        h(UserMenu, {
+          username: USERNAME,
+          skin: 'mobile',
+          onPrototypeSettings: () => (settingsOpen.value = true),
+        })
+    },
+  }),
+)
+
+const minervaRight = computed((): HeaderItem[] | undefined =>
+  isLoggedIn.value
+    ? [
+        { type: 'button', icon: 'search', label: 'Search' },
+        { type: 'button', icon: 'bell-outline', label: 'Notifications' },
+        { type: 'component', component: MobileUserMenu },
+      ]
+    : undefined,
+)
 
 /* Mobile skin: the sidebar becomes a bar along the bottom that opens into a sheet. */
 const skin = useSkin()
@@ -283,7 +318,15 @@ function onArticleClick(event: MouseEvent) {
 </script>
 
 <template>
-  <ChromeWrapper username="Username">
+  <ChromeWrapper :username="USERNAME">
+    <template #header>
+      <ChromeHeader :username="USERNAME" :right="minervaRight">
+        <template #user-menu>
+          <UserMenu :username="USERNAME" skin="desktop" @prototype-settings="settingsOpen = true" />
+        </template>
+      </ChromeHeader>
+    </template>
+
     <div
       ref="layoutRef"
       class="rabbit-holes"
@@ -354,7 +397,11 @@ function onArticleClick(event: MouseEvent) {
 
     <CdxToastContainer />
 
-    <PrototypeSettings v-model:show-trail="showTrail" v-model:show-paths="showPaths" />
+    <PrototypeSettings
+      v-model:open="settingsOpen"
+      v-model:show-trail="showTrail"
+      v-model:show-paths="showPaths"
+    />
 
     <CdxDialog
       v-model:open="stopDialogOpen"

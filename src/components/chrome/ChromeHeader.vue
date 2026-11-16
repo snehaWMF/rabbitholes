@@ -119,6 +119,9 @@ const minervaRight = computed((): HeaderItem[] | undefined => props.right)
     <template v-if="slots.nav" #nav>
       <slot name="nav" />
     </template>
+    <template v-if="slots['user-menu']" #user-menu>
+      <slot name="user-menu" />
+    </template>
   </VectorChromeHeader>
 
   <MinervaChromeHeader

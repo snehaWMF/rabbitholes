@@ -189,14 +189,17 @@ function handleSearchSubmit(payload: SearchSubmitPayload) {
             <CdxIcon :icon="cdxIconWatchlist" />
           </CdxButton>
           <div v-if="navHas('user')" class="vector-chrome-header__user-menu">
-            <CdxButton weight="quiet" aria-label="User menu" aria-haspopup="menu">
-              <CdxIcon :icon="cdxIconUserAvatar" />
-              <CdxIcon
-                class="vector-chrome-header__user-menu-caret"
-                :icon="cdxIconDownTriangle"
-                size="small"
-              />
-            </CdxButton>
+            <!-- Optional: a working user menu in place of the static mock. -->
+            <slot name="user-menu">
+              <CdxButton weight="quiet" aria-label="User menu" aria-haspopup="menu">
+                <CdxIcon :icon="cdxIconUserAvatar" />
+                <CdxIcon
+                  class="vector-chrome-header__user-menu-caret"
+                  :icon="cdxIconDownTriangle"
+                  size="small"
+                />
+              </CdxButton>
+            </slot>
           </div>
         </slot>
       </div>
