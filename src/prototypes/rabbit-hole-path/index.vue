@@ -16,6 +16,7 @@ import ArticleLive from '@/components/article/ArticleLive.vue'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
 import { provideChromeSearchHandlers } from '@/composables/useChromeSearch'
 import { useConfig } from '@/composables/useConfig'
+import { useSkin } from '@/composables/useSkin'
 import {
   collectionArticles,
   createCollection,
@@ -23,6 +24,7 @@ import {
   savePagesToCollection,
 } from './collections'
 import CommonPaths from './CommonPaths.vue'
+import MobileTrailBar from './MobileTrailBar.vue'
 import PrototypeSettings from './PrototypeSettings.vue'
 import RabbitHoleTrail from './RabbitHoleTrail.vue'
 import TableOfContents, { type TocSection } from './TableOfContents.vue'
@@ -39,6 +41,11 @@ const isLoggedIn = computed(() => user.value !== 'logged-out')
 /* Prototype settings: show or hide each sidebar module. Both show on every load. */
 const showTrail = ref(true)
 const showPaths = ref(true)
+
+/* Mobile skin: the sidebar becomes a bar along the bottom that opens into a sheet. */
+const skin = useSkin()
+const isMobile = computed(() => skin.value === 'mobile')
+const sheetOpen = ref(false)
 
 /*
  * ── Each article has its own address ──
@@ -75,6 +82,7 @@ provideChromeSearchHandlers({
 
 /** Open an article in the prototype: trail step, new history entry, back to the top. */
 function goTo(title: string) {
+  sheetOpen.value = false
   follow(title)
   window.scrollTo({ top: 0 })
   if (titleFromQuery() !== title) {
@@ -298,7 +306,7 @@ function onArticleClick(event: MouseEvent) {
         />
       </div>
 
-      <aside class="rabbit-holes__aside">
+      <aside v-if="!isMobile" class="rabbit-holes__aside">
         <div v-if="isLoggedIn" class="rabbit-holes__rail">
           <RabbitHoleTrail
             v-if="showTrail"
@@ -317,6 +325,32 @@ function onArticleClick(event: MouseEvent) {
         </div>
       </aside>
     </div>
+
+    <MobileTrailBar
+      v-if="isMobile && isLoggedIn && (showTrail || showPaths)"
+      v-model:open="sheetOpen"
+      :show-trail="showTrail"
+      :ended="ended"
+      :steps="trail.length"
+      :current="article"
+      @start="start"
+    >
+      <RabbitHoleTrail
+        v-if="showTrail"
+        :trail="trail"
+        :times="times"
+        :idles="idles"
+        :current="current"
+        :ended="ended"
+        :saved="savedArticles"
+        :fit="false"
+        @revisit="revisit"
+        @end="requestStop"
+        @share="shareNow"
+        @start="start"
+      />
+      <CommonPaths v-if="showPaths" :paths="paths" :came-from="cameFrom" @go="goTo" />
+    </MobileTrailBar>
 
     <CdxToastContainer />
 
@@ -433,14 +467,9 @@ function onArticleClick(event: MouseEvent) {
   width: 100%;
 }
 
-/* Mobile skin: no contents rail; the trail follows the article. */
+/* Mobile skin: no contents rail; the trail lives in the bar along the bottom. */
 [data-skin='mobile'] .rabbit-holes__toc {
   display: none;
-}
-
-[data-skin='mobile'] .rabbit-holes__aside {
-  padding: var(--spacing-100, 16px);
-  border-block-start: var(--border-width-base, 1px) solid var(--border-color-subtle);
 }
 </style>
 

@@ -62,6 +62,11 @@ const chipRef = ref<HTMLElement | null>(null)
   z-index: 50;
 }
 
+/* Mobile: sit above the rabbit hole bar along the bottom. */
+:global(body.has-trail-bar .prototype-settings) {
+  inset-block-end: calc(3.5rem + var(--spacing-100, 16px) + env(safe-area-inset-bottom, 0px));
+}
+
 /* Yellow so it reads as "about the prototype", not part of the design. */
 .prototype-settings__chip {
   display: inline-flex;

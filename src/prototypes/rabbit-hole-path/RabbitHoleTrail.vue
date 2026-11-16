@@ -16,9 +16,14 @@ interface Props {
   ended: boolean
   /** Articles in the reader's saved items — marked "saved" under their title. */
   saved?: string[]
+  /**
+   * Cap the list's height to fit the window (desktop sidebar). Off inside the
+   * mobile sheet, which scrolls as a whole.
+   */
+  fit?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { saved: () => [] })
+const props = withDefaults(defineProps<Props>(), { saved: () => [], fit: true })
 
 const emit = defineEmits<{
   revisit: [index: number]
@@ -44,7 +49,7 @@ async function fitList() {
   await nextTick()
   const list = listRef.value
   const nav = navRef.value
-  if (!list || !nav) return
+  if (!list || !nav || !props.fit) return
   // Everything after the list in the rail — its height doesn't depend on the list's.
   // (The rail's own box is height-capped, so measure its last child instead.)
   const lastInRail = (nav.parentElement ?? nav).lastElementChild ?? nav
