@@ -28,6 +28,7 @@ import CommonPaths from './CommonPaths.vue'
 import MobileTrailBar from './MobileTrailBar.vue'
 import RabbitHoleTrail from './RabbitHoleTrail.vue'
 import TableOfContents, { type TocSection } from './TableOfContents.vue'
+import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
 import { formatDuration } from './formatDuration'
 import { useClickstream } from './useClickstream'
@@ -227,7 +228,18 @@ const tocSections = ref<TocSection[]>([])
 const activeSection = ref<string | null>(null)
 let sectionObserver: IntersectionObserver | null = null
 
+/* ── Mobile bar colour: taken from the article's main image; grey without one ── */
+const barTint = ref<Tint | null>(null)
+
+async function tintBar(root: HTMLElement) {
+  const forArticle = article.value
+  const img = mainImage(root)
+  const tint = img ? await tintFromImage(img) : null
+  if (article.value === forArticle) barTint.value = tint
+}
+
 function onParserReady(root: HTMLElement) {
+  void tintBar(root)
   const headings = [...root.querySelectorAll<HTMLElement>('h2[id]')]
   tocSections.value = headings.map((h) => ({ id: h.id, text: h.textContent?.trim() ?? '' }))
   activeSection.value = null
@@ -378,6 +390,7 @@ function onArticleClick(event: MouseEvent) {
       :ended="ended"
       :steps="trail.length"
       :current="article"
+      :tint="barTint"
       @start="start"
     >
       <RabbitHoleTrail

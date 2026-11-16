@@ -8,7 +8,11 @@ import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
 import { cdxIconCollapse, cdxIconExpand, cdxIconPlay } from '@wikimedia/codex-icons'
 
+import type { Tint } from './imageColor'
+
 interface Props {
+  /** Colour from the article's main image; without one the bar is the header's grey. */
+  tint?: Tint | null
   /** Show the trail summary; when false the bar only leads to other readers' paths. */
   showTrail: boolean
   ended: boolean
@@ -18,7 +22,17 @@ interface Props {
   current: string
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { tint: null })
+
+/* Only the collapsed bar takes the colour; the open sheet stays plain for reading. */
+const barStyle = computed(() =>
+  props.tint && !open.value
+    ? {
+        '--trail-bar-background': props.tint.background,
+        '--trail-bar-color': props.tint.dark ? '#fff' : 'var(--color-base)',
+      }
+    : undefined,
+)
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ start: [] }>()
 
@@ -51,7 +65,11 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
       <div v-if="open" class="trail-sheet-scrim" aria-hidden="true" @click="open = false" />
     </Transition>
 
-    <div class="trail-bar" :class="{ 'trail-bar--open': open }">
+    <div
+      class="trail-bar"
+      :class="{ 'trail-bar--open': open, 'trail-bar--tinted': props.tint && !open }"
+      :style="barStyle"
+    >
       <!-- Collapsed: one tappable summary row. -->
       <div v-show="!open" class="trail-bar__row">
         <button
@@ -114,17 +132,37 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   z-index: 90;
   padding-block-end: env(safe-area-inset-bottom, 0px);
   border-block-start: var(--border-width-base, 1px) solid var(--border-color-subtle);
-  background-color: var(--background-color-base);
+  /* Collapsed: the image's colour when there is one, otherwise the header's grey. */
+  background-color: var(--trail-bar-background, var(--background-color-interactive, #eaecf0));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
   font-family: var(--font-family-base);
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
-  color: var(--color-base);
+  color: var(--trail-bar-color, var(--color-base));
+  transition: background-color 200ms ease;
 }
 
 .trail-bar--open {
   border-start-start-radius: var(--border-radius-base, 2px);
   border-start-end-radius: var(--border-radius-base, 2px);
+  background-color: var(--background-color-base);
+}
+
+/* On an image colour, the quiet text and Start take the bar's text colour so they stay readable. */
+.trail-bar--tinted {
+  border-block-start-color: transparent;
+}
+
+.trail-bar--tinted .trail-bar__heading,
+.trail-bar--tinted .trail-bar__depth,
+.trail-bar--tinted .trail-bar__chevron,
+.trail-bar--tinted .trail-bar__start {
+  color: inherit;
+}
+
+.trail-bar--tinted .trail-bar__heading,
+.trail-bar--tinted .trail-bar__depth {
+  opacity: 0.85;
 }
 
 .trail-bar__row {
