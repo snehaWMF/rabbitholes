@@ -1,34 +1,31 @@
 <script setup lang="ts">
 /**
  * Prototype-only: notes about the prototype and switches for its modules,
- * opened from "Prototype settings" in the user menu. Not part of the feature
+ * shown in the panel the header's user icon opens. Not part of the feature
  * being prototyped.
  */
-import { CdxCheckbox, CdxDialog } from '@wikimedia/codex'
+import { CdxCheckbox } from '@wikimedia/codex'
 
 import { CLICKSTREAM_DATA_MONTH } from './useClickstream'
 
-const open = defineModel<boolean>('open', { required: true })
 const showTrail = defineModel<boolean>('showTrail', { required: true })
 const showPaths = defineModel<boolean>('showPaths', { required: true })
 </script>
 
 <template>
-  <CdxDialog v-model:open="open" title="Prototype settings" use-close-button>
-    <div class="prototype-settings">
-      <p class="prototype-settings__note">
-        "Other readers' paths" uses a trimmed {{ CLICKSTREAM_DATA_MONTH }} snapshot of Wikipedia
-        link clicks. There's no live API, so it isn't updated; the prototype copy says the previous
-        month, as a live version would, since each month's data is published the month after.
-      </p>
+  <div class="prototype-settings">
+    <p class="prototype-settings__note">
+      "Other readers' paths" uses a trimmed {{ CLICKSTREAM_DATA_MONTH }} snapshot of Wikipedia link
+      clicks. There's no live API, so it isn't updated; the prototype copy says the previous month,
+      as a live version would, since each month's data is published the month after.
+    </p>
 
-      <fieldset class="prototype-settings__modules">
-        <legend class="prototype-settings__legend">Show on the page</legend>
-        <CdxCheckbox v-model="showTrail">Your rabbit hole</CdxCheckbox>
-        <CdxCheckbox v-model="showPaths">Other readers' paths</CdxCheckbox>
-      </fieldset>
-    </div>
-  </CdxDialog>
+    <fieldset class="prototype-settings__modules">
+      <legend class="prototype-settings__legend">Show on the page</legend>
+      <CdxCheckbox v-model="showTrail">Your rabbit hole</CdxCheckbox>
+      <CdxCheckbox v-model="showPaths">Other readers' paths</CdxCheckbox>
+    </fieldset>
+  </div>
 </template>
 
 <style scoped>

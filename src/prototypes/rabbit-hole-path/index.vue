@@ -26,7 +26,6 @@ import {
 } from './collections'
 import CommonPaths from './CommonPaths.vue'
 import MobileTrailBar from './MobileTrailBar.vue'
-import PrototypeSettings from './PrototypeSettings.vue'
 import RabbitHoleTrail from './RabbitHoleTrail.vue'
 import TableOfContents, { type TocSection } from './TableOfContents.vue'
 import UserMenu from './UserMenu.vue'
@@ -43,15 +42,12 @@ const isLoggedIn = computed(() => user.value !== 'logged-out')
 /* Prototype settings: show or hide each sidebar module. Both show on every load. */
 const showTrail = ref(true)
 const showPaths = ref(true)
-/* Opened from "Prototype settings" in the user menu. */
-const settingsOpen = ref(false)
-
 const USERNAME = 'Username'
 
 /*
- * Header user menu, with Prototype settings in it. Vector takes it in a slot;
- * Minerva takes its right-hand icons as a list, so rebuild that list with the
- * menu (and its arrow) in place of the plain user icon.
+ * The header's user icon opens the prototype settings. Vector takes it in a
+ * slot; Minerva takes its right-hand icons as a list, so rebuild that list
+ * with this icon (and its arrow) in place of the plain user icon.
  */
 const MobileUserMenu = markRaw(
   defineComponent({
@@ -59,9 +55,11 @@ const MobileUserMenu = markRaw(
     setup() {
       return () =>
         h(UserMenu, {
-          username: USERNAME,
           skin: 'mobile',
-          onPrototypeSettings: () => (settingsOpen.value = true),
+          showTrail: showTrail.value,
+          'onUpdate:showTrail': (value: boolean) => (showTrail.value = value),
+          showPaths: showPaths.value,
+          'onUpdate:showPaths': (value: boolean) => (showPaths.value = value),
         })
     },
   }),
@@ -322,7 +320,11 @@ function onArticleClick(event: MouseEvent) {
     <template #header>
       <ChromeHeader :username="USERNAME" :right="minervaRight">
         <template #user-menu>
-          <UserMenu :username="USERNAME" skin="desktop" @prototype-settings="settingsOpen = true" />
+          <UserMenu
+            v-model:show-trail="showTrail"
+            v-model:show-paths="showPaths"
+            skin="desktop"
+          />
         </template>
       </ChromeHeader>
     </template>
@@ -397,11 +399,6 @@ function onArticleClick(event: MouseEvent) {
 
     <CdxToastContainer />
 
-    <PrototypeSettings
-      v-model:open="settingsOpen"
-      v-model:show-trail="showTrail"
-      v-model:show-paths="showPaths"
-    />
 
     <CdxDialog
       v-model:open="stopDialogOpen"
