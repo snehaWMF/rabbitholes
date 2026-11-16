@@ -4,11 +4,16 @@
  * with notes about the prototype and switches for its modules. Not part of
  * the feature being prototyped.
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { CdxCheckbox, CdxIcon, CdxPopover } from '@wikimedia/codex'
 import { cdxIconSettings } from '@wikimedia/codex-icons'
 
+import { useSkin } from '@/composables/useSkin'
 import { CLICKSTREAM_DATA_MONTH } from './useClickstream'
+
+/* Bottom-left on desktop opens upward; top-right on mobile opens downward. */
+const skin = useSkin()
+const placement = computed(() => (skin.value === 'mobile' ? 'bottom-end' : 'top-start'))
 
 const showTrail = defineModel<boolean>('showTrail', { required: true })
 const showPaths = defineModel<boolean>('showPaths', { required: true })
@@ -33,7 +38,7 @@ const chipRef = ref<HTMLElement | null>(null)
     <CdxPopover
       v-model:open="open"
       :anchor="chipRef"
-      placement="top-start"
+      :placement="placement"
       title="Prototype settings"
       use-close-button
       render-in-place
@@ -62,9 +67,9 @@ const chipRef = ref<HTMLElement | null>(null)
   z-index: 50;
 }
 
-/* Mobile: sit above the rabbit hole bar along the bottom. */
-:global(body.has-trail-bar .prototype-settings) {
-  inset-block-end: calc(3.5rem + var(--spacing-100, 16px) + env(safe-area-inset-bottom, 0px));
+/* Mobile: top-right, just under the header, clear of the rabbit hole bar at the bottom. */
+:global(html[data-skin='mobile'] .prototype-settings) {
+  inset: calc(3.5rem + var(--spacing-75, 12px)) var(--spacing-100, 16px) auto auto;
 }
 
 /* Yellow so it reads as "about the prototype", not part of the design. */
