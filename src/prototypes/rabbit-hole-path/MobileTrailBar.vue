@@ -4,11 +4,12 @@
  * the screen that summarises the rabbit hole, and expands into a sheet with
  * the full trail and other readers' paths (passed in the default slot).
  */
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
-import { cdxIconCollapse, cdxIconExpand, cdxIconPlay } from '@wikimedia/codex-icons'
+import { cdxIconClose, cdxIconCollapse, cdxIconExpand, cdxIconPlay } from '@wikimedia/codex-icons'
 
 import type { Tint } from './imageColor'
+import type { ArticlePaths } from './useClickstream'
 
 interface Props {
   /** Colour from the article's main image; without one the bar is the header's grey. */
@@ -20,9 +21,13 @@ interface Props {
   steps: number
   /** The article being read. */
   current: string
+  /** Other readers' paths for this article; `null` while loading or when hidden. */
+  paths?: ArticlePaths | null
+  /** The article the reader followed a link from, if any. */
+  cameFrom?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), { tint: null })
+const props = withDefaults(defineProps<Props>(), { tint: null, paths: null, cameFrom: null })
 
 /* Only the collapsed bar takes the colour; the open sheet stays plain for reading. */
 const barStyle = computed(() =>
@@ -34,7 +39,20 @@ const barStyle = computed(() =>
     : undefined,
 )
 const open = defineModel<boolean>('open', { default: false })
-const emit = defineEmits<{ start: [] }>()
+const emit = defineEmits<{ start: []; go: [title: string] }>()
+
+/*
+ * Other readers' paths, shown in the bar itself when the article has them.
+ * Closing them shows the rabbit hole row instead, until the next article.
+ */
+const topIn = computed(() => props.paths?.in?.[0]?.[0] ?? null)
+const topOut = computed(() => props.paths?.out?.[0]?.[0] ?? null)
+const pathsClosed = ref(false)
+watch(
+  () => props.current,
+  () => (pathsClosed.value = false),
+)
+const showPathsRow = computed(() => !pathsClosed.value && !!(topIn.value || topOut.value))
 
 const heading = computed(() => (props.showTrail ? 'Your rabbit hole' : "Other readers' paths"))
 
@@ -70,8 +88,41 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
       :class="{ 'trail-bar--open': open, 'trail-bar--tinted': props.tint && !open }"
       :style="barStyle"
     >
+      <!-- Collapsed, with paths: where most readers come from and go next. -->
+      <div v-if="!open && showPathsRow" class="trail-bar__paths">
+        <div class="trail-bar__paths-text">
+          <p v-if="topIn" class="trail-bar__path">
+            {{ topIn === props.cameFrom ? 'Like you, most readers come here from' : 'Most readers come here from' }}
+            <a
+              class="trail-bar__path-link"
+              :href="`#${encodeURIComponent(topIn)}`"
+              @click.prevent="emit('go', topIn)"
+              >{{ topIn }}</a
+            >
+          </p>
+          <p v-if="topOut" class="trail-bar__path">
+            Most readers go next to
+            <a
+              class="trail-bar__path-link"
+              :href="`#${encodeURIComponent(topOut)}`"
+              @click.prevent="emit('go', topOut)"
+              >{{ topOut }}</a
+            >
+          </p>
+        </div>
+        <button
+          type="button"
+          class="trail-bar__paths-close"
+          aria-label="Close"
+          title="Close"
+          @click="pathsClosed = true"
+        >
+          <CdxIcon :icon="cdxIconClose" />
+        </button>
+      </div>
+
       <!-- Collapsed: one tappable summary row. -->
-      <div v-show="!open" class="trail-bar__row">
+      <div v-show="!open && !showPathsRow" class="trail-bar__row">
         <button
           type="button"
           class="trail-bar__summary"
@@ -163,6 +214,55 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 .trail-bar--tinted .trail-bar__heading,
 .trail-bar--tinted .trail-bar__depth {
   opacity: 0.85;
+}
+
+/* Paths row: larger, body-size text on the bar's colour, links underlined in the same colour. */
+.trail-bar__paths {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-75, 12px);
+  padding: var(--spacing-100, 16px) var(--spacing-50, 8px) var(--spacing-100, 16px)
+    var(--spacing-150, 24px);
+  font-size: var(--font-size-medium, 1rem);
+  line-height: var(--line-height-medium, 1.625rem);
+}
+
+.trail-bar__paths-text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.trail-bar__path {
+  margin: 0;
+}
+
+.trail-bar__path-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.trail-bar__paths-close {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.trail-bar__paths-close .cdx-icon {
+  color: inherit;
+}
+
+.trail-bar__path-link:focus-visible,
+.trail-bar__paths-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 
 .trail-bar__row {

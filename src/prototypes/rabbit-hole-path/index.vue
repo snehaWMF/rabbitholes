@@ -36,7 +36,13 @@ import { useRabbitHole } from './useRabbitHole'
 
 const START_ARTICLE = "Alice's Adventures in Wonderland"
 
-const { user } = useConfig()
+const { user, webSkin } = useConfig()
+/*
+ * The layout follows the window: phone layout when narrow, desktop when wide.
+ * A `?skin=` link saves a fixed skin for the whole site, which would stop it
+ * switching when the window is resized, so this prototype resets it to auto.
+ */
+if (webSkin.value !== 'auto') webSkin.value = 'auto'
 /*
  * The trail is a logged-in reader feature, so this prototype always shows a
  * logged-in reader. A "Logged out" choice saved by another prototype on the
@@ -402,7 +408,10 @@ function onArticleClick(event: MouseEvent) {
       :steps="trail.length"
       :current="article"
       :tint="barTint"
+      :paths="showPaths ? paths : null"
+      :came-from="cameFrom"
       @start="start"
+      @go="goTo"
     >
       <RabbitHoleTrail
         v-if="showTrail"
