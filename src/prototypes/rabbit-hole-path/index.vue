@@ -37,7 +37,18 @@ import { useRabbitHole } from './useRabbitHole'
 const START_ARTICLE = "Alice's Adventures in Wonderland"
 
 const { user } = useConfig()
-/** The trail is a logged-in reader feature. */
+/*
+ * The trail is a logged-in reader feature, so this prototype always shows a
+ * logged-in reader. A "Logged out" choice saved by another prototype on the
+ * same site would otherwise hide the sidebar.
+ */
+watch(
+  user,
+  (value) => {
+    if (value === 'logged-out') user.value = 'new'
+  },
+  { immediate: true },
+)
 const isLoggedIn = computed(() => user.value !== 'logged-out')
 
 /* Prototype settings: show or hide each sidebar module. Both show on every load. */
