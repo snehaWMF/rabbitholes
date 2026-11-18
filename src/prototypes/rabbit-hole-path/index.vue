@@ -427,7 +427,8 @@ function onArticleClick(event: MouseEvent) {
         @share="shareNow"
         @start="start"
       />
-      <CommonPaths v-if="showPaths" :paths="paths" :came-from="cameFrom" @go="goTo" />
+      <!-- Paths already show in the bar itself; the sheet carries them only without the trail. -->
+      <CommonPaths v-if="showPaths && !showTrail" :paths="paths" :came-from="cameFrom" @go="goTo" />
     </MobileTrailBar>
 
     <CdxToastContainer />

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /**
  * Mobile (Minerva) home for the sidebar: a slim bar pinned to the bottom of
- * the screen that summarises the rabbit hole, and expands into a sheet with
- * the full trail and other readers' paths (passed in the default slot).
+ * the screen. It leads with other readers' paths when the article has them;
+ * otherwise (or once those are closed) it shows the rabbit hole's state, and
+ * expands into a sheet with the full trail (passed in the default slot).
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
-import { cdxIconClose, cdxIconCollapse, cdxIconExpand, cdxIconPlay } from '@wikimedia/codex-icons'
+import { cdxIconClose, cdxIconCollapse, cdxIconPlay } from '@wikimedia/codex-icons'
 
 import type { Tint } from './imageColor'
 import type { ArticlePaths } from './useClickstream'
@@ -56,23 +57,33 @@ const showPathsRow = computed(() => !pathsClosed.value && !!(topIn.value || topO
 
 const heading = computed(() => (props.showTrail ? 'Your rabbit hole' : "Other readers' paths"))
 
-/** The second line of the bar: where the reader is, or what to do first. */
+/*
+ * The second line of the bar. For the rabbit hole it follows the reader:
+ * not started → what Start does; started → what to do next; going → how deep.
+ */
 const summary = computed(() => {
   if (!props.showTrail) return props.current
   if (props.ended) return 'Select Start to see your trail'
-  return props.current
-})
-
-const depth = computed(() => {
-  if (!props.showTrail || props.ended || props.steps <= 1) return null
+  if (props.steps <= 1) return 'Follow a link in the article to start going deeper'
   const links = props.steps - 1
   return `${links} ${links === 1 ? 'link' : 'links'} deep`
 })
 
+/* Before Start there's no trail to open, so the bar offers only Start. */
+const canOpen = computed(() => !(props.showTrail && props.ended))
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && open.value) open.value = false
+}
+
 /* Keep the end of the page clear of the bar, and stop the page scrolling under the open sheet. */
-onMounted(() => document.body.classList.add('has-trail-bar'))
+onMounted(() => {
+  document.body.classList.add('has-trail-bar')
+  window.addEventListener('keydown', onKeydown)
+})
 onBeforeUnmount(() => {
   document.body.classList.remove('has-trail-bar', 'trail-sheet-open')
+  window.removeEventListener('keydown', onKeydown)
 })
 watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value))
 </script>
@@ -124,6 +135,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
       <!-- Collapsed: one tappable summary row. -->
       <div v-show="!open && !showPathsRow" class="trail-bar__row">
         <button
+          v-if="canOpen"
           type="button"
           class="trail-bar__summary"
           :aria-expanded="open"
@@ -134,9 +146,14 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
             <span class="trail-bar__heading">{{ heading }}</span>
             <span class="trail-bar__current">{{ summary }}</span>
           </span>
-          <span v-if="depth" class="trail-bar__depth">{{ depth }}</span>
           <CdxIcon class="trail-bar__chevron" :icon="cdxIconCollapse" size="small" />
         </button>
+        <div v-else class="trail-bar__summary trail-bar__summary--static">
+          <span class="trail-bar__text">
+            <span class="trail-bar__heading">{{ heading }}</span>
+            <span class="trail-bar__current">{{ summary }}</span>
+          </span>
+        </div>
         <button
           v-if="props.showTrail && props.ended"
           type="button"
@@ -156,18 +173,16 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
         role="dialog"
         :aria-label="heading"
       >
-        <div class="trail-sheet__top">
+        <!-- Just a grab handle; tapping it (or outside the sheet, or Escape) collapses. -->
+        <button
+          type="button"
+          class="trail-sheet__top"
+          aria-label="Collapse"
+          title="Collapse"
+          @click="open = false"
+        >
           <span class="trail-sheet__handle" aria-hidden="true" />
-          <button
-            type="button"
-            class="trail-sheet__close"
-            aria-label="Collapse"
-            title="Collapse"
-            @click="open = false"
-          >
-            <CdxIcon :icon="cdxIconExpand" size="small" />
-          </button>
-        </div>
+        </button>
         <div class="trail-sheet__body">
           <slot />
         </div>
@@ -205,14 +220,12 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 }
 
 .trail-bar--tinted .trail-bar__heading,
-.trail-bar--tinted .trail-bar__depth,
 .trail-bar--tinted .trail-bar__chevron,
 .trail-bar--tinted .trail-bar__start {
   color: inherit;
 }
 
-.trail-bar--tinted .trail-bar__heading,
-.trail-bar--tinted .trail-bar__depth {
+.trail-bar--tinted .trail-bar__heading {
   opacity: 0.85;
 }
 
@@ -286,6 +299,10 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   cursor: pointer;
 }
 
+.trail-bar__summary--static {
+  cursor: default;
+}
+
 .trail-bar__text {
   display: flex;
   flex: 1;
@@ -299,17 +316,16 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   color: var(--color-subtle);
 }
 
+/* Up to two lines, so "Follow a link…" fits on a phone; longer gets an ellipsis. */
 .trail-bar__current {
+  display: -webkit-box;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-weight: var(--font-weight-bold);
 }
 
-.trail-bar__depth {
-  flex: none;
-  color: var(--color-subtle);
-}
 
 .trail-bar__chevron {
   flex: none;
@@ -337,7 +353,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 
 .trail-bar__summary:focus-visible,
 .trail-bar__start:focus-visible,
-.trail-sheet__close:focus-visible {
+.trail-sheet__top:focus-visible {
   outline: 2px solid var(--color-progressive);
   outline-offset: -2px;
 }
@@ -349,44 +365,54 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   max-block-size: 75dvh;
 }
 
+/* A slim grab strip across the top of the sheet. */
 .trail-sheet__top {
-  position: relative;
   display: flex;
-  justify-content: flex-end;
-  min-block-size: 2.75rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  block-size: var(--spacing-150, 24px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 
 .trail-sheet__handle {
-  position: absolute;
-  inset-block-start: var(--spacing-50, 8px);
-  inset-inline-start: 50%;
   inline-size: 2.25rem;
   block-size: 4px;
   border-radius: var(--border-radius-pill, 9999px);
   background-color: var(--border-color-subtle);
-  transform: translateX(-50%);
-}
-
-.trail-sheet__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
-  border: 0;
-  background: none;
-  color: var(--color-subtle);
-  cursor: pointer;
-}
-
-.trail-sheet__close .cdx-icon {
-  color: inherit;
 }
 
 .trail-sheet__body {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 0 var(--spacing-100, 16px) var(--spacing-150, 24px);
+  padding: var(--spacing-50, 8px) var(--spacing-100, 16px) var(--spacing-150, 24px);
+}
+
+/* In the sheet the trail reads at body size, with a full-strength heading. */
+.trail-sheet__body :deep(.rabbit-hole) {
+  font-size: var(--font-size-medium, 1rem);
+  line-height: var(--line-height-medium, 1.625rem);
+}
+
+.trail-sheet__body :deep(.rabbit-hole__heading) {
+  color: var(--color-base);
+}
+
+.trail-sheet__body :deep(.rabbit-hole__header) {
+  padding-block-end: var(--spacing-50, 8px);
+}
+
+.trail-sheet__body :deep(.rabbit-hole__time) {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.trail-sheet__body :deep(.rabbit-hole__item) {
+  padding-block: var(--spacing-50, 8px);
+  --rabbit-hole-marker-mid: calc(var(--spacing-50, 8px) + 0.8em);
 }
 
 .trail-sheet-scrim {

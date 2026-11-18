@@ -72,12 +72,31 @@ export async function tintFromImage(img: HTMLImageElement): Promise<Tint | null>
     if (!best) return null
 
     // Bright, vivid colours are toned down so the bar's text stays easy to read.
-    const [r, g, b] = mute(best.r / best.n, best.g / best.n, best.b / best.n)
-    // Below ~0.21, white text has more contrast than the base text colour.
-    return { background: `rgb(${r}, ${g}, ${b})`, dark: luminance(r, g, b) < 0.21 }
+    let [r, g, b] = mute(best.r / best.n, best.g / best.n, best.b / best.n)
+    // Light colours keep dark text. Anything darker than that gets white text, and
+    // is darkened just enough for white to read clearly (WCAG AA, 4.5:1).
+    if (luminance(r, g, b) >= LIGHT_ENOUGH) {
+      return { background: `rgb(${r}, ${g}, ${b})`, dark: false }
+    }
+    ;[r, g, b] = darkenForWhiteText(r, g, b)
+    return { background: `rgb(${r}, ${g}, ${b})`, dark: true }
   } catch {
     return null
   }
+}
+
+/** Colours at least this light (WCAG luminance) keep dark text; anything darker gets white. */
+const LIGHT_ENOUGH = 0.4
+/** Highest luminance that gives white text 4.5:1 contrast. */
+const MAX_LUMINANCE_FOR_WHITE = 1.05 / 4.5 - 0.05
+
+/** Scale the colour down, keeping its hue, until white text on it meets 4.5:1. */
+function darkenForWhiteText(r: number, g: number, b: number): [number, number, number] {
+  let [dr, dg, db] = [r, g, b]
+  while (luminance(dr, dg, db) > MAX_LUMINANCE_FOR_WHITE) {
+    ;[dr, dg, db] = [dr, dg, db].map((v) => v * 0.95)
+  }
+  return [dr, dg, db].map(Math.round) as [number, number, number]
 }
 
 /** Highest saturation the bar uses (HSL, 0–1); anything more vivid is turned down to this. */

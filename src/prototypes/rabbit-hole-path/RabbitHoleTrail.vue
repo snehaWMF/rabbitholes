@@ -164,11 +164,13 @@ function showTime(index: number) {
             >
           </li>
         </template>
+        <!-- Before the first link: an empty next step on the path, waiting to be filled. -->
+        <li v-if="props.trail.length === 1" class="rabbit-hole__item rabbit-hole__item--next">
+          <span class="rabbit-hole__marker" aria-hidden="true" />
+          <span class="rabbit-hole__label">Follow a link in the article to start going deeper.</span>
+        </li>
       </ol>
-      <p v-if="props.trail.length === 1" class="rabbit-hole__empty">
-        Follow a link in the article to start going deeper.
-      </p>
-      <p v-else class="rabbit-hole__depth">
+      <p v-if="props.trail.length > 1" class="rabbit-hole__depth">
         {{ props.trail.length - 1 }} {{ props.trail.length - 1 === 1 ? 'link' : 'links' }} deep
         <button
           type="button"
@@ -315,6 +317,11 @@ function showTime(index: number) {
 
 .rabbit-hole__item--idle::before {
   border-inline-start-style: dashed;
+}
+
+/* The waiting next step: hollow dot, quiet text. */
+.rabbit-hole__item--next {
+  color: var(--color-subtle);
 }
 
 .rabbit-hole__marker--none {
