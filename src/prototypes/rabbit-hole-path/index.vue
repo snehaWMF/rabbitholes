@@ -57,9 +57,12 @@ watch(
 )
 const isLoggedIn = computed(() => user.value !== 'logged-out')
 
-/* Prototype settings: show or hide each sidebar module. Both show on every load. */
+/*
+ * Prototype settings: show or hide each module. Desktop starts with both;
+ * a phone starts with just the rabbit hole, as mobile shows one at a time.
+ */
 const showTrail = ref(true)
-const showPaths = ref(true)
+const showPaths = ref(useSkin().value !== 'mobile')
 
 /*
  * Mobile has a separate bar for each feature; a combined one isn't designed
