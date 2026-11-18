@@ -27,7 +27,7 @@ function scrollToSection(id: string | null) {
     <h2 id="toc-heading" class="toc__heading">Contents</h2>
     <ul class="toc__list">
       <li class="toc__item" :class="{ 'toc__item--active': props.active === null }">
-        <a href="#" class="toc__link" @click.prevent="scrollToSection(null)">(Top)</a>
+        <button type="button" class="toc__link" @click="scrollToSection(null)">(Top)</button>
       </li>
       <li
         v-for="section in props.sections"
@@ -35,9 +35,9 @@ function scrollToSection(id: string | null) {
         class="toc__item"
         :class="{ 'toc__item--active': props.active === section.id }"
       >
-        <a :href="`#${section.id}`" class="toc__link" @click.prevent="scrollToSection(section.id)">
+        <button type="button" class="toc__link" @click="scrollToSection(section.id)">
           {{ section.text }}
-        </a>
+        </button>
       </li>
     </ul>
   </nav>
@@ -70,9 +70,21 @@ function scrollToSection(id: string | null) {
   padding-block: var(--spacing-25, 4px);
 }
 
+/* Buttons styled as links, so hovering doesn't show a URL in the browser's corner. */
 .toc__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
   color: var(--color-progressive);
   text-decoration: none;
+  cursor: pointer;
+}
+
+.toc__link:focus-visible {
+  outline: 2px solid var(--color-progressive);
+  outline-offset: 1px;
 }
 
 .toc__link:hover {

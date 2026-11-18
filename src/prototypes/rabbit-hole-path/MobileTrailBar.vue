@@ -106,20 +106,20 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
           <p v-if="noPaths" class="trail-bar__path">No popular path found for this article.</p>
           <p v-if="topIn" class="trail-bar__path">
             {{ topIn === props.cameFrom ? 'Like you, most readers come here from' : 'Most readers come here from' }}
-            <a
+            <button
+              type="button"
               class="trail-bar__path-link"
-              :href="`#${encodeURIComponent(topIn)}`"
-              @click.prevent="emit('go', topIn)"
-              >{{ topIn }}</a
+              @click="emit('go', topIn)"
+              >{{ topIn }}</button
             >
           </p>
           <p v-if="topOut" class="trail-bar__path">
             Most readers go next to
-            <a
+            <button
+              type="button"
               class="trail-bar__path-link"
-              :href="`#${encodeURIComponent(topOut)}`"
-              @click.prevent="emit('go', topOut)"
-              >{{ topOut }}</a
+              @click="emit('go', topOut)"
+              >{{ topOut }}</button
             >
           </p>
         </div>
@@ -252,10 +252,17 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   margin: 0;
 }
 
+/* A button styled as a link: no URL preview in the browser's corner. */
 .trail-bar__path-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 .trail-bar__paths-close {

@@ -141,14 +141,15 @@ function showTime(index: number) {
               <span v-if="index === props.current" class="rabbit-hole__label" aria-current="page">
                 {{ title }}
               </span>
-              <a
+              <!-- A button, not a link: no URL preview in the browser's corner on hover. -->
+              <button
                 v-else
+                type="button"
                 class="rabbit-hole__label"
-                :href="`#${encodeURIComponent(title)}`"
-                @click.prevent="emit('revisit', index)"
+                @click="emit('revisit', index)"
               >
                 {{ title }}
-              </a>
+              </button>
               <span v-if="metaFor(index, title)" class="rabbit-hole__time">
                 {{ metaFor(index, title) }}
               </span>
@@ -354,12 +355,23 @@ function showTime(index: number) {
   color: var(--color-subtle);
 }
 
-a.rabbit-hole__label {
+button.rabbit-hole__label {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
   color: var(--color-progressive);
   text-decoration: none;
+  cursor: pointer;
 }
 
-a.rabbit-hole__label:hover {
+button.rabbit-hole__label:focus-visible {
+  outline: 2px solid var(--color-progressive);
+  outline-offset: 1px;
+}
+
+button.rabbit-hole__label:hover {
   text-decoration: underline;
 }
 
