@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * Mobile (Minerva) home for the sidebar: a slim bar pinned to the bottom of
- * the screen. It leads with other readers' paths when the article has them;
- * otherwise (or once those are closed) it shows the rabbit hole's state, and
- * expands into a sheet with the full trail (passed in the default slot).
+ * Mobile (Minerva) bar pinned to the bottom of the screen. Each feature has
+ * its own version for now (a combined one isn't designed yet):
+ * - `trail`: the rabbit hole's state, expanding into a sheet with the full
+ *   trail (passed in the default slot);
+ * - `paths`: where most readers come from and go next, with a close button.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
@@ -15,8 +16,8 @@ import type { ArticlePaths } from './useClickstream'
 interface Props {
   /** Colour from the article's main image; without one the bar is the header's grey. */
   tint?: Tint | null
-  /** Show the trail summary; when false the bar only leads to other readers' paths. */
-  showTrail: boolean
+  /** Which feature's bar to show. */
+  mode: 'trail' | 'paths'
   ended: boolean
   /** Number of steps in the trail (the start article counts as one). */
   steps: number
@@ -42,10 +43,7 @@ const barStyle = computed(() =>
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ start: []; go: [title: string] }>()
 
-/*
- * Other readers' paths, shown in the bar itself when the article has them.
- * Closing them shows the rabbit hole row instead, until the next article.
- */
+/* Other readers' paths. Closing them hides the bar until the next article. */
 const topIn = computed(() => props.paths?.in?.[0]?.[0] ?? null)
 const topOut = computed(() => props.paths?.out?.[0]?.[0] ?? null)
 const pathsClosed = ref(false)
@@ -53,16 +51,18 @@ watch(
   () => props.current,
   () => (pathsClosed.value = false),
 )
-const showPathsRow = computed(() => !pathsClosed.value && !!(topIn.value || topOut.value))
-
-const heading = computed(() => (props.showTrail ? 'Your rabbit hole' : "Other readers' paths"))
+/* `null` paths means still loading: show nothing rather than a flash of "no path". */
+const showPathsBar = computed(
+  () => props.mode === 'paths' && !pathsClosed.value && props.paths !== null,
+)
+const noPaths = computed(() => !topIn.value && !topOut.value)
+const visible = computed(() => props.mode === 'trail' || showPathsBar.value)
 
 /*
  * The second line of the bar. For the rabbit hole it follows the reader:
  * not started → what Start does; started → what to do next; going → how deep.
  */
 const summary = computed(() => {
-  if (!props.showTrail) return props.current
   if (props.ended) return 'Select Start to see your trail'
   if (props.steps <= 1) return 'Follow a link in the article to start going deeper'
   const links = props.steps - 1
@@ -70,16 +70,16 @@ const summary = computed(() => {
 })
 
 /* Before Start there's no trail to open, so the bar offers only Start. */
-const canOpen = computed(() => !(props.showTrail && props.ended))
+const canOpen = computed(() => !props.ended)
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && open.value) open.value = false
 }
 
 /* Keep the end of the page clear of the bar, and stop the page scrolling under the open sheet. */
-onMounted(() => {
-  document.body.classList.add('has-trail-bar')
-  window.addEventListener('keydown', onKeydown)
+onMounted(() => window.addEventListener('keydown', onKeydown))
+watch(visible, (value) => document.body.classList.toggle('has-trail-bar', value), {
+  immediate: true,
 })
 onBeforeUnmount(() => {
   document.body.classList.remove('has-trail-bar', 'trail-sheet-open')
@@ -95,13 +95,15 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
     </Transition>
 
     <div
+      v-if="visible"
       class="trail-bar"
       :class="{ 'trail-bar--open': open, 'trail-bar--tinted': props.tint && !open }"
       :style="barStyle"
     >
-      <!-- Collapsed, with paths: where most readers come from and go next. -->
-      <div v-if="!open && showPathsRow" class="trail-bar__paths">
+      <!-- Other readers' paths: where most readers come from and go next. -->
+      <div v-if="showPathsBar" class="trail-bar__paths">
         <div class="trail-bar__paths-text">
+          <p v-if="noPaths" class="trail-bar__path">No popular path found for this article.</p>
           <p v-if="topIn" class="trail-bar__path">
             {{ topIn === props.cameFrom ? 'Like you, most readers come here from' : 'Most readers come here from' }}
             <a
@@ -132,8 +134,8 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
         </button>
       </div>
 
-      <!-- Collapsed: one tappable summary row. -->
-      <div v-show="!open && !showPathsRow" class="trail-bar__row">
+      <!-- Rabbit hole, collapsed: one tappable summary row. -->
+      <div v-if="props.mode === 'trail'" v-show="!open" class="trail-bar__row">
         <button
           v-if="canOpen"
           type="button"
@@ -143,19 +145,19 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
           @click="open = true"
         >
           <span class="trail-bar__text">
-            <span class="trail-bar__heading">{{ heading }}</span>
+            <span class="trail-bar__heading">Your rabbit hole</span>
             <span class="trail-bar__current">{{ summary }}</span>
           </span>
           <CdxIcon class="trail-bar__chevron" :icon="cdxIconCollapse" size="small" />
         </button>
         <div v-else class="trail-bar__summary trail-bar__summary--static">
           <span class="trail-bar__text">
-            <span class="trail-bar__heading">{{ heading }}</span>
+            <span class="trail-bar__heading">Your rabbit hole</span>
             <span class="trail-bar__current">{{ summary }}</span>
           </span>
         </div>
         <button
-          v-if="props.showTrail && props.ended"
+          v-if="props.ended"
           type="button"
           class="trail-bar__start"
           @click="emit('start')"
@@ -165,13 +167,14 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
         </button>
       </div>
 
-      <!-- Expanded: the sheet, with the same modules as the desktop sidebar. -->
+      <!-- Rabbit hole, expanded: the sheet with the full trail. -->
       <section
+        v-if="props.mode === 'trail'"
         v-show="open"
         id="trail-sheet"
         class="trail-sheet"
         role="dialog"
-        :aria-label="heading"
+        aria-label="Your rabbit hole"
       >
         <!-- Just a grab handle; tapping it (or outside the sheet, or Escape) collapses. -->
         <button

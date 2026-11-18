@@ -60,6 +60,15 @@ const isLoggedIn = computed(() => user.value !== 'logged-out')
 /* Prototype settings: show or hide each sidebar module. Both show on every load. */
 const showTrail = ref(true)
 const showPaths = ref(true)
+
+/*
+ * Mobile has a separate bar for each feature; a combined one isn't designed
+ * yet, so with both (or neither) selected the bar doesn't show.
+ */
+const mobileBarMode = computed<'trail' | 'paths' | null>(() => {
+  if (showTrail.value === showPaths.value) return null
+  return showTrail.value ? 'trail' : 'paths'
+})
 const USERNAME = 'Username'
 
 /*
@@ -401,20 +410,19 @@ function onArticleClick(event: MouseEvent) {
     </div>
 
     <MobileTrailBar
-      v-if="isMobile && isLoggedIn && (showTrail || showPaths)"
+      v-if="isMobile && isLoggedIn && mobileBarMode"
       v-model:open="sheetOpen"
-      :show-trail="showTrail"
+      :mode="mobileBarMode"
       :ended="ended"
       :steps="trail.length"
       :current="article"
       :tint="barTint"
-      :paths="showPaths ? paths : null"
+      :paths="paths"
       :came-from="cameFrom"
       @start="start"
       @go="goTo"
     >
       <RabbitHoleTrail
-        v-if="showTrail"
         :trail="trail"
         :times="times"
         :idles="idles"
@@ -427,8 +435,6 @@ function onArticleClick(event: MouseEvent) {
         @share="shareNow"
         @start="start"
       />
-      <!-- Paths already show in the bar itself; the sheet carries them only without the trail. -->
-      <CommonPaths v-if="showPaths && !showTrail" :paths="paths" :came-from="cameFrom" @go="goTo" />
     </MobileTrailBar>
 
     <CdxToastContainer />
