@@ -195,7 +195,13 @@ function saveSession() {
   createCollection(`${trail.value[0]} rabbit hole`, trailPages.value)
   stopDialogOpen.value = false
   end()
+  toast.success('Your rabbit hole is saved to your saved items', { autoDismiss: true })
 }
+
+/* Once the session ends there's no trail to look at: drop the mobile sheet back to the bar. */
+watch(ended, (value) => {
+  if (value) sheetOpen.value = false
+})
 
 /** Share the trail (share sheet, or copied as a list); `false` if the reader cancelled. */
 async function shareTrail(): Promise<boolean> {
