@@ -186,7 +186,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   /* Collapsed: the image's colour when there is one, otherwise the header's grey. */
   background-color: var(--trail-bar-background, var(--background-color-interactive, #eaecf0));
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
   color: var(--trail-bar-color, var(--color-base));

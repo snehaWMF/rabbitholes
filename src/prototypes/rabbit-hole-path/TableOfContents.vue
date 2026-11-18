@@ -46,7 +46,7 @@ function scrollToSection(id: string | null) {
 <style scoped>
 /* Codex "Small" style throughout, like Vector's sidebar. */
 .toc {
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-normal);
   line-height: var(--line-height-small);

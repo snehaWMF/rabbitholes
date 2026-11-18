@@ -187,7 +187,7 @@ function showTime(index: number) {
 <style scoped>
 /* Every piece of text here is the Codex "Small" style. */
 .rabbit-hole {
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-normal);
   line-height: var(--line-height-small);

@@ -72,7 +72,7 @@ const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy
   /* Room for the fullest version: heading, two two-line paths, two-line source. */
   min-block-size: 11.5rem;
   margin-block-start: var(--spacing-150, 24px);
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-normal);
   line-height: var(--line-height-small);

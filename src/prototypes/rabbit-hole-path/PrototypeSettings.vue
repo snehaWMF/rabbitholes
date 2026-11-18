@@ -30,7 +30,7 @@ const showPaths = defineModel<boolean>('showPaths', { required: true })
 
 <style scoped>
 .prototype-settings {
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
 }
