@@ -275,7 +275,6 @@ async function tintBar(root: HTMLElement) {
 
 function onParserReady(root: HTMLElement) {
   void tintBar(root)
-  hideArticleLinkUrls(root)
   const headings = [...root.querySelectorAll<HTMLElement>('h2[id]')]
   tocSections.value = headings.map((h) => ({ id: h.id, text: h.textContent?.trim() ?? '' }))
   activeSection.value = null
@@ -341,7 +340,7 @@ const NON_ARTICLE_NAMESPACE =
 /** Parsoid article links look like `./Title_with_underscores#Section`. */
 function articleTitleFromLink(link: HTMLAnchorElement): string | null {
   const rel = link.getAttribute('rel') ?? ''
-  const href = link.getAttribute('href') ?? link.dataset.href ?? ''
+  const href = link.getAttribute('href') ?? ''
   if (!rel.split(/\s+/).includes('mw:WikiLink') || !href.startsWith('./')) return null
   if (link.classList.contains('new')) return null // red link
 
@@ -351,25 +350,9 @@ function articleTitleFromLink(link: HTMLAnchorElement): string | null {
   return title
 }
 
-/*
- * Links to other articles keep their address in `data-href` instead of
- * `href`, so hovering doesn't show a URL in the browser's corner. They still
- * look and work like links (click, Tab, Enter), and always open in this tab,
- * where the rabbit hole is.
- */
-function hideArticleLinkUrls(root: HTMLElement) {
-  root.querySelectorAll<HTMLAnchorElement>('a[href^="./"]').forEach((link) => {
-    if (!articleTitleFromLink(link)) return
-    link.dataset.href = link.getAttribute('href') ?? ''
-    link.removeAttribute('href')
-    link.setAttribute('role', 'link')
-    link.tabIndex = 0
-  })
-}
-
-function onArticleClick(event: MouseEvent | KeyboardEvent) {
-  if (event.defaultPrevented) return
-  if (event instanceof MouseEvent && event.button !== 0) return
+function onArticleClick(event: MouseEvent) {
+  if (event.defaultPrevented || event.button !== 0) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
   const link = (event.target as HTMLElement).closest('a')
   if (!link) return
   const title = articleTitleFromLink(link)
@@ -404,11 +387,7 @@ function onArticleClick(event: MouseEvent | KeyboardEvent) {
         </div>
       </aside>
 
-      <div
-        class="rabbit-holes__article"
-        @click="onArticleClick"
-        @keydown.enter="onArticleClick"
-      >
+      <div class="rabbit-holes__article" @click="onArticleClick">
         <ArticleLive
           :article="article"
           tools-menu
@@ -499,11 +478,6 @@ function onArticleClick(event: MouseEvent | KeyboardEvent) {
 </template>
 
 <style scoped>
-/* Article links without an `href` (see hideArticleLinkUrls) still get the hand cursor. */
-.rabbit-holes__article :deep(a[data-href]) {
-  cursor: pointer;
-}
-
 /*
  * Vector 2022 layout: contents on the left, the article centred, and the
  * right rail (normally Tools — here the rabbit hole; Tools moves to the ⋮

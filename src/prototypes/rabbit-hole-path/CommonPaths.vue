@@ -39,21 +39,21 @@ const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy
 
     <p v-if="topIn" class="common-paths__line">
       {{ sameAsReader ? 'Like you, most readers come here from' : 'Most readers come here from' }}
-      <button
-        type="button"
+      <a
         class="common-paths__link"
-        @click="emit('go', topIn)"
-        >{{ topIn }}</button
+        :href="`#${encodeURIComponent(topIn)}`"
+        @click.prevent="emit('go', topIn)"
+        >{{ topIn }}</a
       >
     </p>
 
     <p v-if="topOut" class="common-paths__line">
       Most readers go next to
-      <button
-        type="button"
+      <a
         class="common-paths__link"
-        @click="emit('go', topOut)"
-        >{{ topOut }}</button
+        :href="`#${encodeURIComponent(topOut)}`"
+        @click.prevent="emit('go', topOut)"
+        >{{ topOut }}</a
       >
     </p>
 
@@ -96,21 +96,9 @@ const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy
   margin: 0 0 var(--spacing-50, 8px);
 }
 
-/* Article links are buttons styled as links: no URL preview in the browser's corner. */
 .common-paths__link {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  text-align: start;
   color: var(--color-progressive);
   text-decoration: none;
-  cursor: pointer;
-}
-
-.common-paths__link:focus-visible {
-  outline: 2px solid var(--color-progressive);
-  outline-offset: 1px;
 }
 
 .common-paths__link:hover {
