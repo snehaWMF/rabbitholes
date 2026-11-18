@@ -6,7 +6,7 @@
  *   trail (passed in the default slot);
  * - `paths`: where most readers come from and go next, with a close button.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
 import { cdxIconClose, cdxIconCollapse, cdxIconPlay } from '@wikimedia/codex-icons'
 
@@ -81,9 +81,35 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 watch(visible, (value) => document.body.classList.toggle('has-trail-bar', value), {
   immediate: true,
 })
+/*
+ * Publish the collapsed bar's height as --trail-bar-height on <html>, so
+ * things like toasts can sit just above it (the paths bar is taller).
+ */
+const barEl = ref<HTMLElement | null>(null)
+let barObserver: ResizeObserver | null = null
+function publishBarHeight() {
+  const el = barEl.value
+  const root = document.documentElement.style
+  if (!el) root.removeProperty('--trail-bar-height')
+  else if (!open.value) root.setProperty('--trail-bar-height', `${el.offsetHeight}px`)
+}
+watch(barEl, (el) => {
+  barObserver?.disconnect()
+  publishBarHeight()
+  if (!el) return
+  barObserver = new ResizeObserver(publishBarHeight)
+  barObserver.observe(el)
+})
+// Back to the collapsed bar (after the sheet, or a different version): measure again.
+watch([open, () => props.mode, () => props.ended, () => props.steps], () =>
+  nextTick(publishBarHeight),
+)
+
 onBeforeUnmount(() => {
   document.body.classList.remove('has-trail-bar', 'trail-sheet-open')
   window.removeEventListener('keydown', onKeydown)
+  barObserver?.disconnect()
+  document.documentElement.style.removeProperty('--trail-bar-height')
 })
 watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value))
 </script>
@@ -96,6 +122,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 
     <div
       v-if="visible"
+      ref="barEl"
       class="trail-bar"
       :class="{ 'trail-bar--open': open, 'trail-bar--tinted': props.tint && !open }"
       :style="barStyle"

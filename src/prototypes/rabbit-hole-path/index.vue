@@ -604,4 +604,28 @@ function onArticleClick(event: MouseEvent) {
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
 }
+
+/*
+ * Mobile: full width near the bottom, just above the bottom bar when it shows
+ * (MobileTrailBar sets --trail-bar-height, which includes the safe area).
+ */
+[data-skin='mobile'] .cdx-toast-container {
+  inset: auto var(--spacing-100, 16px)
+    calc(var(--trail-bar-height, env(safe-area-inset-bottom, 0px)) + var(--spacing-75, 12px));
+}
+
+[data-skin='mobile'] .cdx-toast-container__stack {
+  align-items: stretch;
+}
+
+[data-skin='mobile'] .cdx-toast-container .cdx-toast {
+  max-width: none;
+}
+
+[data-skin='mobile'] .cdx-toast-container .cdx-toast.cdx-toast-enter-from,
+[data-skin='mobile'] .cdx-toast-container .cdx-toast.cdx-toast-leave-to,
+[data-skin='mobile'] .cdx-toast-container .cdx-toast.cdx-toast-leave-active-system.cdx-toast-leave-to,
+[data-skin='mobile'] .cdx-toast-container .cdx-toast.cdx-toast-leave-active-user.cdx-toast-leave-to {
+  transform: translateY(8px);
+}
 </style>
