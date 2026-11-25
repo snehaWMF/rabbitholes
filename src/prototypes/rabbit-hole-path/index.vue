@@ -143,9 +143,9 @@ provideChromeSearchHandlers({
 })
 
 /** Open an article in the prototype: trail step, new history entry, back to the top. */
-function goTo(title: string) {
+function goTo(title: string, { fromTrail = false } = {}) {
   sheetOpen.value = false
-  visit(title)
+  visit(title, { fromTrail })
   window.scrollTo({ top: 0 })
   if (titleFromQuery() !== title) {
     void router.push({ query: { ...route.query, article: title.replace(/ /g, '_') } })
@@ -246,9 +246,9 @@ function onSave() {
   savedArticles.value = collectionArticles()
 }
 
-/** Picking a step in the trail opens it; going back to the last step rejoins the path. */
+/** Picking an earlier step in the trail pauses the path; picking the last one resumes it. */
 function revisit(index: number) {
-  goTo(trail.value[index])
+  goTo(trail.value[index], { fromTrail: true })
 }
 
 /* ── Table of contents: the article's h2 sections, with the one in view marked ── */

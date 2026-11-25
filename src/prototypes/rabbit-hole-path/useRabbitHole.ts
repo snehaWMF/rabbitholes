@@ -6,9 +6,9 @@ import { ref } from 'vue'
  * selects Start to begin a hole on the article they're reading.
  *
  * A page only joins the trail if the trail's last article links to it.
- * Anything else — a search, Back / Forward, an earlier step in the trail —
- * is a jump: the reader is off the path, and nothing is added until they
- * reach a page the last article links to, or go back to that article.
+ * Anything else — a search, Back / Forward to an unlinked page, an earlier
+ * step in the trail — pauses the path: nothing is added until the reader
+ * goes back to the trail's last article.
  */
 export function useRabbitHole(startArticle: string) {
   const trail = ref<string[]>([startArticle])
@@ -30,14 +30,18 @@ export function useRabbitHole(startArticle: string) {
     linksByPage.set(page, new Set(links))
   }
 
-  /** Reader opened an article, however they got there. */
-  function visit(title: string) {
+  /**
+   * Reader opened an article, however they got there. `fromTrail`: they
+   * picked an earlier step in the trail, which pauses the path. Once paused,
+   * only going back to the last step resumes it.
+   */
+  function visit(title: string, { fromTrail = false } = {}) {
     article.value = title
     if (ended.value) return
     const last = trail.value[current.value]
     if (title === last) {
       offPath.value = false
-    } else if (linksByPage.get(last)?.has(title)) {
+    } else if (!offPath.value && !fromTrail && linksByPage.get(last)?.has(title)) {
       offPath.value = false
       trail.value = [...trail.value, title]
       current.value = trail.value.length - 1
