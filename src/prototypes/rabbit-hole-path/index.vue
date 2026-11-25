@@ -59,6 +59,8 @@ const isLoggedIn = computed(() => user.value !== 'logged-out')
 /* Prototype settings: show or hide each module. Both show on every load. */
 const showTrail = ref(true)
 const showPaths = ref(true)
+/** Let the reader start a sub-path from any step in the trail. Off by default. */
+const branching = ref(false)
 
 /*
  * Mobile's bottom bar has a version for each feature and one for both; with
@@ -88,6 +90,8 @@ const MobileUserMenu = markRaw(
           'onUpdate:showTrail': (value: boolean) => (showTrail.value = value),
           showPaths: showPaths.value,
           'onUpdate:showPaths': (value: boolean) => (showPaths.value = value),
+          branching: branching.value,
+          'onUpdate:branching': (value: boolean) => (branching.value = value),
         })
     },
   }),
@@ -122,14 +126,13 @@ function titleFromQuery(): string | null {
   return raw ? raw.replace(/_/g, ' ') : null
 }
 
-const { trail, current, ended, offPath, article, visit, setLinks, end, start } = useRabbitHole(
-  titleFromQuery() ?? START_ARTICLE,
-)
+const { steps, trail, depth, current, ended, offPath, article, visit, setLinks, end, start } =
+  useRabbitHole(titleFromQuery() ?? START_ARTICLE, branching)
 
 const { paths } = useClickstream(article)
 /** The step before this one in the reader's own trail, to compare with everyone else's. */
 const cameFrom = computed(() =>
-  !ended.value && !offPath.value && current.value > 0 ? trail.value[current.value - 1] : null,
+  ended.value || offPath.value ? null : (trail.value[steps.value[current.value]?.parent ?? -1] ?? null),
 )
 
 provideChromeSearchHandlers({
@@ -142,9 +145,9 @@ provideChromeSearchHandlers({
 })
 
 /** Open an article in the prototype: trail step, new history entry, back to the top. */
-function goTo(title: string, { fromTrail = false } = {}) {
+function goTo(title: string, { step }: { step?: number } = {}) {
   sheetOpen.value = false
-  visit(title, { fromTrail })
+  visit(title, { step })
   window.scrollTo({ top: 0 })
   if (titleFromQuery() !== title) {
     void router.push({ query: { ...route.query, article: title.replace(/ /g, '_') } })
@@ -203,11 +206,13 @@ watch(ended, (value) => {
 
 /** Share the trail (share sheet, or copied as a list); `false` if the reader cancelled. */
 async function shareTrail(): Promise<boolean> {
-  const steps = trail.value.map((t, i) => {
+  const lines = trail.value.map((t, i) => {
     const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}`
-    return `${i + 1}. ${t} — ${url}`
+    const from = steps.value[i].parent
+    const via = from !== null && from !== i - 1 ? ` (from ${trail.value[from]})` : ''
+    return `${i + 1}. ${t}${via} — ${url}`
   })
-  const text = `My Wikipedia rabbit hole:\n${steps.join('\n')}`
+  const text = `My Wikipedia rabbit hole:\n${lines.join('\n')}`
   try {
     if (navigator.share) await navigator.share({ title: 'My Wikipedia rabbit hole', text })
     else await navigator.clipboard.writeText(text)
@@ -245,9 +250,12 @@ function onSave() {
   savedArticles.value = collectionArticles()
 }
 
-/** Picking an earlier step in the trail pauses the path; picking the last one resumes it. */
+/*
+ * Picking a step in the trail. One path: an earlier step pauses it, the last
+ * resumes it. Multiple paths: any step puts the reader back on the path there.
+ */
 function revisit(index: number) {
-  goTo(trail.value[index], { fromTrail: true })
+  goTo(trail.value[index], { step: index })
 }
 
 /* ── Table of contents: the article's h2 sections, with the one in view marked ── */
@@ -369,6 +377,7 @@ function onArticleClick(event: MouseEvent) {
           <UserMenu
             v-model:show-trail="showTrail"
             v-model:show-paths="showPaths"
+            v-model:branching="branching"
             skin="desktop"
           />
         </template>
@@ -401,8 +410,10 @@ function onArticleClick(event: MouseEvent) {
         <div v-if="isLoggedIn" class="rabbit-holes__rail">
           <RabbitHoleTrail
             v-if="showTrail"
-            :trail="trail"
+            :steps="steps"
             :current="current"
+            :depth="depth"
+            :branching="branching"
             :ended="ended"
             :off-path="offPath"
             :saved="savedArticles"
@@ -424,6 +435,7 @@ function onArticleClick(event: MouseEvent) {
       :ended="ended"
       :off-path="offPath"
       :steps="trail.length"
+      :depth="depth"
       :current="article"
       :tint="barTint"
       :paths="paths"
@@ -432,8 +444,10 @@ function onArticleClick(event: MouseEvent) {
       @go="goTo"
     >
       <RabbitHoleTrail
-        :trail="trail"
+        :steps="steps"
         :current="current"
+        :depth="depth"
+        :branching="branching"
         :ended="ended"
         :off-path="offPath"
         :saved="savedArticles"

@@ -10,6 +10,7 @@ import { CLICKSTREAM_DATA_MONTH } from './useClickstream'
 
 const showTrail = defineModel<boolean>('showTrail', { required: true })
 const showPaths = defineModel<boolean>('showPaths', { required: true })
+const branching = defineModel<boolean>('branching', { required: true })
 </script>
 
 <template>
@@ -23,6 +24,16 @@ const showPaths = defineModel<boolean>('showPaths', { required: true })
       <legend class="prototype-settings__legend">Show on the page</legend>
       <CdxCheckbox v-model="showTrail">Your rabbit hole</CdxCheckbox>
       <CdxCheckbox v-model="showPaths">Other readers' paths</CdxCheckbox>
+    </fieldset>
+
+    <fieldset class="prototype-settings__modules">
+      <legend class="prototype-settings__legend">Your rabbit hole</legend>
+      <CdxCheckbox v-model="branching" :disabled="!showTrail">
+        Multiple paths
+        <template #description>
+          Pick any article in your trail to start a new sub-path from it.
+        </template>
+      </CdxCheckbox>
     </fieldset>
   </div>
 </template>
@@ -43,6 +54,10 @@ const showPaths = defineModel<boolean>('showPaths', { required: true })
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.prototype-settings__modules + .prototype-settings__modules {
+  margin-block-start: var(--spacing-100, 16px);
 }
 
 .prototype-settings__legend {

@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
 import { cdxIconPlay, cdxIconStop } from '@wikimedia/codex-icons'
 
+import type { Step } from './useRabbitHole'
+
 interface Props {
-  trail: string[]
+  /** The trail as a tree: each step knows the step it was reached from. */
+  steps: Step[]
+  /** Index of the step the reader is on. */
   current: number
+  /** Links from the first step to the current one. */
+  depth: number
+  /** Multiple paths: any step can start a sub-path (changes the off-path note). */
+  branching?: boolean
   /** Tracking ended — no trail, just the option to start again. */
   ended: boolean
   /** The reader jumped to a page the last step doesn't link to; that step is the way back. */
@@ -26,6 +34,7 @@ const props = withDefaults(defineProps<Props>(), {
   fit: true,
   offPath: false,
   hideable: false,
+  branching: false,
 })
 
 const emit = defineEmits<{
@@ -38,6 +47,80 @@ const emit = defineEmits<{
 /** The step the reader is on — none while they're off the path. */
 function isHere(index: number) {
   return index === props.current && !props.offPath
+}
+
+/*
+ * ── Rows ──
+ * The tree drawn as a list. A step's first link continues its line; any
+ * later link from the same step is a sub-path, indented one level and drawn
+ * right under it with an elbow from the line it branched from. Vertical
+ * guides carry a line past sub-paths to where it continues.
+ */
+interface Row {
+  key: string
+  kind: 'step' | 'next' | 'off'
+  index: number
+  title: string
+  level: number
+  /** Line from the row above, at this row's level. */
+  up: boolean
+  /** Elbow from the parent's line (first step of a sub-path). */
+  elbow: boolean
+  /** Line on down to the next row at this level. */
+  down: boolean
+  /** Levels whose line passes straight through this row. */
+  guides: number[]
+}
+
+const rows = computed<Row[]>(() => {
+  const steps = props.steps
+  const children = steps.map(() => [] as number[])
+  steps.forEach((s, i) => {
+    if (s.parent !== null) children[s.parent].push(i)
+  })
+  const out: Row[] = []
+  const walk = (i: number, level: number, elbow: boolean) => {
+    out.push({
+      key: `step-${i}`,
+      kind: 'step',
+      index: i,
+      title: steps[i].title,
+      level,
+      up: steps[i].parent !== null && !elbow,
+      elbow,
+      down: children[i].length > 0,
+      guides: [],
+    })
+    for (const branch of children[i].slice(1)) walk(branch, level + 1, true)
+    if (children[i][0] !== undefined) walk(children[i][0], level, false)
+  }
+  if (steps.length) walk(0, 0, false)
+
+  // A note at the end: off the path, or (one step so far) the next step waiting.
+  const extra = props.offPath ? 'off' : steps.length === 1 ? 'next' : null
+  if (extra) {
+    const last = out[out.length - 1]
+    last.down = true
+    out.push({ key: extra, kind: extra, index: -1, title: '', level: last.level, up: true, elbow: false, down: false, guides: [] })
+  }
+
+  out.forEach((row, r) => {
+    for (let level = 0; level < row.level; level++) {
+      if (continuesBelow(out, r, level)) row.guides.push(level)
+    }
+  })
+  return out
+})
+
+/** Whether the line at `level` carries on somewhere below row `r`. */
+function continuesBelow(rows: Row[], r: number, level: number) {
+  for (let j = r + 1; j < rows.length; j++) {
+    const row = rows[j]
+    if (row.level === level + 1 && row.elbow) return true
+    if (row.level === level) return row.up
+    if (row.level < level) return false
+  }
+  return false
 }
 
 /*
@@ -81,7 +164,7 @@ async function fitList() {
 
 let railObserver: ResizeObserver | null = null
 
-watch(() => [props.trail.length, props.ended, props.offPath], fitList)
+watch(() => [props.steps.length, props.current, props.ended, props.offPath], fitList)
 onMounted(() => {
   fitList()
   window.addEventListener('resize', fitList)
@@ -136,49 +219,64 @@ function metaFor(title: string) {
         :class="{ 'rabbit-hole__list--scrolls': listMaxHeight }"
         :style="{ maxHeight: listMaxHeight }"
       >
-        <template v-for="(title, index) in props.trail" :key="`${index}-${title}`">
-          <li
-            class="rabbit-hole__item"
-            :class="{ 'rabbit-hole__item--current': isHere(index) }"
-          >
-            <span class="rabbit-hole__marker" aria-hidden="true" />
-            <span class="rabbit-hole__text">
-              <span v-if="isHere(index)" class="rabbit-hole__label" aria-current="page">
-                {{ title }}
-              </span>
-              <a
-                v-else
-                class="rabbit-hole__label"
-                :href="`#${encodeURIComponent(title)}`"
-                @click.prevent="emit('revisit', index)"
-              >
-                {{ title }}
-              </a>
-              <span v-if="metaFor(title)" class="rabbit-hole__meta">
-                {{ metaFor(title) }}
-              </span>
-            </span>
-          </li>
-        </template>
-        <!-- Jumped to a page the last step doesn't link to: a broken line to a note pointing back to the last article. -->
-        <li v-if="props.offPath" class="rabbit-hole__item rabbit-hole__item--off">
+        <li
+          v-for="row in rows"
+          :key="row.key"
+          class="rabbit-hole__item"
+          :class="{
+            'rabbit-hole__item--current': row.kind === 'step' && isHere(row.index),
+            'rabbit-hole__item--next': row.kind === 'next',
+            'rabbit-hole__item--off': row.kind === 'off',
+          }"
+          :style="{ '--level': row.level }"
+        >
+          <span
+            v-for="level in row.guides"
+            :key="level"
+            class="rabbit-hole__guide"
+            :style="{ '--at': level }"
+            aria-hidden="true"
+          />
+          <span v-if="row.up" class="rabbit-hole__line rabbit-hole__line--up" aria-hidden="true" />
+          <span v-if="row.elbow" class="rabbit-hole__elbow" aria-hidden="true" />
+          <span v-if="row.down" class="rabbit-hole__line rabbit-hole__line--down" aria-hidden="true" />
           <span class="rabbit-hole__marker" aria-hidden="true" />
-          <span class="rabbit-hole__label">
-            You've veered off the path. When you're ready, select the last article above to
-            continue your journey.
+
+          <span v-if="row.kind === 'step'" class="rabbit-hole__text">
+            <span v-if="isHere(row.index)" class="rabbit-hole__label" aria-current="page">
+              {{ row.title }}
+            </span>
+            <a
+              v-else
+              class="rabbit-hole__label"
+              :href="`#${encodeURIComponent(row.title)}`"
+              @click.prevent="emit('revisit', row.index)"
+            >
+              {{ row.title }}
+            </a>
+            <span v-if="metaFor(row.title)" class="rabbit-hole__meta">
+              {{ metaFor(row.title) }}
+            </span>
+          </span>
+          <!-- Jumped somewhere the current step doesn't link to: a broken line to the way back. -->
+          <span v-else-if="row.kind === 'off'" class="rabbit-hole__label">
+            <template v-if="props.branching">
+              You've veered off the path. When you're ready, select any article above to continue
+              from it, or start a new path there.
+            </template>
+            <template v-else>
+              You've veered off the path. When you're ready, select the last article above to
+              continue your journey.
+            </template>
+          </span>
+          <!-- Before the first link: an empty next step on the path, waiting to be filled. -->
+          <span v-else class="rabbit-hole__label">
+            Follow a link in the article to start going deeper.
           </span>
         </li>
-        <!-- Before the first link: an empty next step on the path, waiting to be filled. -->
-        <li
-          v-else-if="props.trail.length === 1"
-          class="rabbit-hole__item rabbit-hole__item--next"
-        >
-          <span class="rabbit-hole__marker" aria-hidden="true" />
-          <span class="rabbit-hole__label">Follow a link in the article to start going deeper.</span>
-        </li>
       </ol>
-      <p v-if="props.trail.length > 1" class="rabbit-hole__depth">
-        {{ props.trail.length - 1 }} {{ props.trail.length - 1 === 1 ? 'link' : 'links' }} deep
+      <p v-if="props.steps.length > 1" class="rabbit-hole__depth">
+        {{ props.depth }} {{ props.depth === 1 ? 'link' : 'links' }} deep
       </p>
     </template>
   </nav>
@@ -287,6 +385,8 @@ function metaFor(title: string) {
 .rabbit-hole__list {
   /* Positioned so each step's offsetTop is measured from the list. */
   position: relative;
+  /* How far a sub-path is indented. */
+  --rabbit-hole-indent: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -309,33 +409,48 @@ function metaFor(title: string) {
 }
 
 /*
- * One straight line down the markers: each item draws its full height, the
- * first starting at its marker and the last stopping at it, so titles that
- * wrap onto two lines don't break the line.
+ * Lines between the markers. Each row draws its own pieces — up to its
+ * marker, down from it, an elbow from the line it branched off, and guides
+ * for lines passing through — so titles that wrap don't break the line.
  */
 .rabbit-hole__item {
   --rabbit-hole-marker-mid: calc(var(--spacing-25, 4px) + 0.7em);
+  --rabbit-hole-x: calc(var(--level, 0) * var(--rabbit-hole-indent) + 3px);
+  padding-inline-start: calc(var(--level, 0) * var(--rabbit-hole-indent));
 }
 
-.rabbit-hole__item::before {
-  content: '';
+.rabbit-hole__line,
+.rabbit-hole__guide,
+.rabbit-hole__elbow {
   position: absolute;
-  inset-block: 0;
-  inset-inline-start: 3px;
   border-inline-start: var(--border-width-base, 1px) solid var(--border-color-subtle);
 }
 
-.rabbit-hole__item:first-child::before {
-  inset-block-start: var(--rabbit-hole-marker-mid);
+.rabbit-hole__line {
+  inset-inline-start: var(--rabbit-hole-x);
 }
 
-.rabbit-hole__item:last-child::before {
-  inset-block-end: auto;
+.rabbit-hole__line--up {
+  inset-block-start: 0;
   block-size: var(--rabbit-hole-marker-mid);
 }
 
-.rabbit-hole__item:only-child::before {
-  content: none;
+.rabbit-hole__line--down {
+  inset-block: var(--rabbit-hole-marker-mid) 0;
+}
+
+.rabbit-hole__guide {
+  inset-block: 0;
+  inset-inline-start: calc(var(--at) * var(--rabbit-hole-indent) + 3px);
+}
+
+.rabbit-hole__elbow {
+  inset-block-start: 0;
+  inset-inline-start: calc(var(--rabbit-hole-x) - var(--rabbit-hole-indent));
+  inline-size: calc(var(--rabbit-hole-indent) - 3px);
+  block-size: var(--rabbit-hole-marker-mid);
+  border-block-end: var(--border-width-base, 1px) solid var(--border-color-subtle);
+  border-end-start-radius: 6px;
 }
 
 /* Markers sit on top of the line so it doesn't show through the hollow dots. */
@@ -361,7 +476,7 @@ function metaFor(title: string) {
 }
 
 /* Off the path: the line to the note is broken (dashed). */
-.rabbit-hole__item--off::before {
+.rabbit-hole__item--off .rabbit-hole__line--up {
   border-inline-start-style: dashed;
 }
 

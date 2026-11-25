@@ -21,6 +21,7 @@ interface Props {
 const props = defineProps<Props>()
 const showTrail = defineModel<boolean>('showTrail', { required: true })
 const showPaths = defineModel<boolean>('showPaths', { required: true })
+const branching = defineModel<boolean>('branching', { default: false })
 
 const open = ref(false)
 const anchor = ref<InstanceType<typeof CdxButton> | null>(null)
@@ -48,7 +49,11 @@ const anchor = ref<InstanceType<typeof CdxButton> | null>(null)
       use-close-button
       class="user-menu__popover"
     >
-      <PrototypeSettings v-model:show-trail="showTrail" v-model:show-paths="showPaths" />
+      <PrototypeSettings
+        v-model:show-trail="showTrail"
+        v-model:show-paths="showPaths"
+        v-model:branching="branching"
+      />
     </CdxPopover>
   </span>
 </template>

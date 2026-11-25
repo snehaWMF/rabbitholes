@@ -25,6 +25,8 @@ interface Props {
   offPath?: boolean
   /** Number of steps in the trail (the start article counts as one). */
   steps: number
+  /** Links from the first step to the current one. */
+  depth: number
   /** The article being read. */
   current: string
   /** Other readers' paths for this article; `null` while loading or when hidden. */
@@ -69,8 +71,7 @@ const visible = computed(() => hasSheet.value || showPathsBar.value)
 /* Both: the rabbit hole's side section reads "Your rabbit hole / N links deep". */
 const depthLabel = computed(() => {
   if (props.offPath) return 'Off the path'
-  const links = Math.max(0, props.steps - 1)
-  return `${links} ${links === 1 ? 'link' : 'links'} deep`
+  return `${props.depth} ${props.depth === 1 ? 'link' : 'links'} deep`
 })
 
 /*
@@ -81,8 +82,7 @@ const summary = computed(() => {
   if (props.ended) return 'Select Start to see your trail'
   if (props.offPath) return "You've veered off the path"
   if (props.steps <= 1) return 'Follow a link in the article to start going deeper'
-  const links = props.steps - 1
-  return `${links} ${links === 1 ? 'link' : 'links'} deep`
+  return `${props.depth} ${props.depth === 1 ? 'link' : 'links'} deep`
 })
 
 /* Before Start there's no trail to open, so the bar offers only Start. */
