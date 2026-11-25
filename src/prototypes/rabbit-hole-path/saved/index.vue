@@ -6,9 +6,9 @@
  * picture of each) and how deep it went; selecting it shows the whole path.
  * Reached from the header's saved icon, or "View" on the toast after saving.
  */
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { CdxDialog, CdxIcon } from '@wikimedia/codex'
+import { CdxIcon } from '@wikimedia/codex'
 import { cdxIconLock, cdxIconMapTrail } from '@wikimedia/codex-icons'
 
 import ChromeHeader from '@/components/chrome/ChromeHeader.vue'
@@ -92,18 +92,14 @@ function open(title: string) {
   void router.push({ path: '/rabbit-hole-path', query: { article: title.replace(/ /g, '_') } })
 }
 
-/* Selecting a rabbit hole shows its whole path. */
-const openHole = ref<HoleItem | null>(null)
-const dialogOpen = computed({
-  get: () => openHole.value !== null,
-  set: (value) => {
-    if (!value) openHole.value = null
-  },
-})
-
+/* A rabbit hole opens at its first article, with its path in the sidebar ("Saved rabbit hole"). */
 function select(item: Item) {
   if (item.kind === 'page') open(item.title)
-  else openHole.value = item
+  else
+    void router.push({
+      path: '/rabbit-hole-path',
+      query: { article: item.first.replace(/ /g, '_'), hole: item.key.replace(/^hole-/, '') },
+    })
 }
 </script>
 
@@ -179,20 +175,6 @@ function select(item: Item) {
       </ul>
     </SpecialPageWrapper>
 
-    <CdxDialog
-      v-model:open="dialogOpen"
-      :title="openHole ? `${openHole.first} rabbit hole` : ''"
-      :subtitle="openHole ? linksDeep(openHole.links) : ''"
-      use-close-button
-    >
-      <ol v-if="openHole" class="saved__path">
-        <li v-for="title in openHole.articles" :key="title">
-          <a class="saved__path-link" :href="`#${encodeURIComponent(title)}`" @click.prevent="open(title)">
-            {{ title }}
-          </a>
-        </li>
-      </ol>
-    </CdxDialog>
   </ChromeWrapper>
 </template>
 
@@ -385,21 +367,4 @@ function select(item: Item) {
   line-clamp: 2;
 }
 
-.saved__path {
-  margin: 0;
-  padding-inline-start: var(--spacing-150, 24px);
-}
-
-.saved__path li {
-  padding-block: var(--spacing-25, 4px);
-}
-
-.saved__path-link {
-  color: var(--color-progressive);
-  text-decoration: none;
-}
-
-.saved__path-link:hover {
-  text-decoration: underline;
-}
 </style>

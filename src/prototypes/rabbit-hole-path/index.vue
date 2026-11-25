@@ -22,7 +22,9 @@ import { useSkin } from '@/composables/useSkin'
 import {
   collectionArticles,
   createCollection,
+  loadCollections,
   removePageFromCollection,
+  SAVED_PAGES_COLLECTION,
   savePagesToCollection,
 } from './collections'
 import CommonPaths from './CommonPaths.vue'
@@ -32,7 +34,7 @@ import TableOfContents, { type TocSection } from './TableOfContents.vue'
 import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
 import { useClickstream } from './useClickstream'
-import { useRabbitHole } from './useRabbitHole'
+import { useRabbitHole, type Step } from './useRabbitHole'
 
 const START_ARTICLE = "Alice's Adventures in Wonderland"
 
@@ -68,8 +70,9 @@ const branching = ref(false)
  * neither selected it doesn't show.
  */
 const mobileBarMode = computed<'trail' | 'paths' | 'both' | null>(() => {
-  if (showTrail.value && showPaths.value) return 'both'
-  if (showTrail.value) return 'trail'
+  const trailOn = showTrail.value || !!savedHole.value
+  if (trailOn && showPaths.value) return 'both'
+  if (trailOn) return 'trail'
   if (showPaths.value) return 'paths'
   return null
 })
@@ -268,6 +271,35 @@ function onSave() {
 }
 
 /*
+ * ── Looking at a saved rabbit hole (`?hole=<when it was saved>`) ──
+ * Opened from the saved items page at its first article. The sidebar shows
+ * its path as "Saved rabbit hole" (in place of the reader's own) until they
+ * hide it; its steps open as ordinary articles.
+ */
+const savedHole = computed(() => {
+  const id = route.query.hole
+  if (typeof id !== 'string') return null
+  return loadCollections().find((c) => c.createdAt === id && c.name !== SAVED_PAGES_COLLECTION) ?? null
+})
+const savedSteps = computed<Step[]>(
+  () => savedHole.value?.articles.map((title, i) => ({ title, parent: i ? i - 1 : null })) ?? [],
+)
+const savedCurrent = computed(() => savedHole.value?.articles.indexOf(article.value) ?? -1)
+const savedLinks = computed(() =>
+  savedHole.value ? (savedHole.value.links ?? savedHole.value.articles.length - 1) : 0,
+)
+
+function openSavedStep(index: number) {
+  if (savedHole.value) goTo(savedHole.value.articles[index])
+}
+
+function closeSavedHole() {
+  const query = { ...route.query }
+  delete query.hole
+  void router.replace({ query })
+}
+
+/*
  * Picking a step in the trail. One path: an earlier step pauses it, the last
  * resumes it. Multiple paths: any step puts the reader back on the path there.
  */
@@ -431,7 +463,20 @@ function onArticleClick(event: MouseEvent) {
       <aside v-if="!isMobile" class="rabbit-holes__aside">
         <div v-if="isLoggedIn" class="rabbit-holes__rail">
           <RabbitHoleTrail
-            v-if="showTrail"
+            v-if="savedHole"
+            heading="Saved rabbit hole"
+            readonly
+            hideable
+            :steps="savedSteps"
+            :current="savedCurrent"
+            :depth="savedLinks"
+            :ended="false"
+            :saved="savedArticles"
+            @revisit="openSavedStep"
+            @hide="closeSavedHole"
+          />
+          <RabbitHoleTrail
+            v-else-if="showTrail"
             :steps="steps"
             :current="current"
             :depth="depth"
@@ -454,10 +499,11 @@ function onArticleClick(event: MouseEvent) {
       v-if="isMobile && isLoggedIn && mobileBarMode"
       v-model:open="sheetOpen"
       :mode="mobileBarMode"
-      :ended="ended"
-      :off-path="offPath"
-      :steps="trail.length"
-      :depth="depth"
+      :heading="savedHole ? 'Saved rabbit hole' : undefined"
+      :ended="savedHole ? false : ended"
+      :off-path="savedHole ? false : offPath"
+      :steps="savedHole ? savedSteps.length : trail.length"
+      :depth="savedHole ? savedLinks : depth"
       :current="article"
       :tint="barTint"
       :paths="paths"
@@ -466,6 +512,21 @@ function onArticleClick(event: MouseEvent) {
       @go="goTo"
     >
       <RabbitHoleTrail
+        v-if="savedHole"
+        heading="Saved rabbit hole"
+        readonly
+        hideable
+        :steps="savedSteps"
+        :current="savedCurrent"
+        :depth="savedLinks"
+        :ended="false"
+        :saved="savedArticles"
+        :fit="false"
+        @revisit="openSavedStep"
+        @hide="closeSavedHole"
+      />
+      <RabbitHoleTrail
+        v-else
         :steps="steps"
         :current="current"
         :depth="depth"

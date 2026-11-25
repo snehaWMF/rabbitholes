@@ -16,6 +16,8 @@ import type { Tint } from './imageColor'
 import type { ArticlePaths } from './useClickstream'
 
 interface Props {
+  /** The rabbit hole's label ("Your rabbit hole", or "Saved rabbit hole" when looking at one). */
+  heading?: string
   /** Colour from the article's main image; without one the bar is the header's grey. */
   tint?: Tint | null
   /** Which feature's bar to show. */
@@ -40,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
   paths: null,
   cameFrom: null,
   offPath: false,
+  heading: 'Your rabbit hole',
 })
 
 /* Only the collapsed bar takes the colour; the open sheet stays plain for reading. */
@@ -201,7 +204,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
           @click="open = true"
         >
           <span class="trail-bar__side-text">
-            <span>Your rabbit hole</span>
+            <span>{{ props.heading }}</span>
             <span>{{ depthLabel }}</span>
           </span>
           <CdxIcon class="trail-bar__chevron" :icon="cdxIconCollapse" size="small" />
@@ -219,14 +222,14 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
           @click="open = true"
         >
           <span class="trail-bar__text">
-            <span class="trail-bar__heading">Your rabbit hole</span>
+            <span class="trail-bar__heading">{{ props.heading }}</span>
             <span class="trail-bar__current">{{ summary }}</span>
           </span>
           <CdxIcon class="trail-bar__chevron" :icon="cdxIconCollapse" size="small" />
         </button>
         <div v-else class="trail-bar__summary trail-bar__summary--static">
           <span class="trail-bar__text">
-            <span class="trail-bar__heading">Your rabbit hole</span>
+            <span class="trail-bar__heading">{{ props.heading }}</span>
             <span class="trail-bar__current">{{ summary }}</span>
           </span>
         </div>
@@ -248,7 +251,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
         id="trail-sheet"
         class="trail-sheet"
         role="dialog"
-        aria-label="Your rabbit hole"
+        :aria-label="props.heading"
       >
         <!-- Just a grab handle; tapping it (or outside the sheet, or Escape) collapses. -->
         <button

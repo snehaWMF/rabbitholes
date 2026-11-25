@@ -6,6 +6,10 @@ import { cdxIconPlay, cdxIconStop } from '@wikimedia/codex-icons'
 import type { Step } from './useRabbitHole'
 
 interface Props {
+  /** Module heading. */
+  heading?: string
+  /** A saved rabbit hole being looked at: no Start / End, no notes. */
+  readonly?: boolean
   /** The trail as a tree: each step knows the step it was reached from. */
   steps: Step[]
   /** Index of the step the reader is on. */
@@ -35,6 +39,8 @@ const props = withDefaults(defineProps<Props>(), {
   offPath: false,
   hideable: false,
   branching: false,
+  heading: 'Your rabbit hole',
+  readonly: false,
 })
 
 const emit = defineEmits<{
@@ -97,7 +103,7 @@ const rows = computed<Row[]>(() => {
   if (steps.length) walk(0, 0, false)
 
   // A note at the end: off the path, or (one step so far) the next step waiting.
-  const extra = props.offPath ? 'off' : steps.length === 1 ? 'next' : null
+  const extra = props.readonly ? null : props.offPath ? 'off' : steps.length === 1 ? 'next' : null
   if (extra) {
     const last = out[out.length - 1]
     last.down = true
@@ -191,7 +197,7 @@ function metaFor(title: string) {
     <!-- Heading (with "hide" beside it on desktop), and End at the right once started. -->
     <div class="rabbit-hole__header">
       <h2 id="rabbit-hole-heading" class="rabbit-hole__heading">
-        Your rabbit hole
+        {{ props.heading }}
         <button
           v-if="props.hideable"
           type="button"
@@ -201,18 +207,28 @@ function metaFor(title: string) {
           hide
         </button>
       </h2>
-      <button v-if="!props.ended" type="button" class="rabbit-hole__toggle" @click="emit('end')">
+      <button
+        v-if="!props.ended && !props.readonly"
+        type="button"
+        class="rabbit-hole__toggle"
+        @click="emit('end')"
+      >
         <CdxIcon :icon="cdxIconStop" size="small" />
         End
       </button>
     </div>
 
-    <button v-if="props.ended" type="button" class="rabbit-hole__start" @click="emit('start')">
+    <button
+      v-if="props.ended && !props.readonly"
+      type="button"
+      class="rabbit-hole__start"
+      @click="emit('start')"
+    >
       <CdxIcon :icon="cdxIconPlay" size="small" />
       Start your rabbit hole
     </button>
 
-    <template v-else>
+    <template v-if="!props.ended || props.readonly">
       <ol
         ref="listRef"
         class="rabbit-hole__list"
