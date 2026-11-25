@@ -56,12 +56,9 @@ watch(
 )
 const isLoggedIn = computed(() => user.value !== 'logged-out')
 
-/*
- * Prototype settings: show or hide each module. Desktop starts with both;
- * a phone starts with just the rabbit hole, as mobile shows one at a time.
- */
+/* Prototype settings: show or hide each module. Both show on every load. */
 const showTrail = ref(true)
-const showPaths = ref(useSkin().value !== 'mobile')
+const showPaths = ref(true)
 
 /*
  * Mobile's bottom bar has a version for each feature and one for both; with
