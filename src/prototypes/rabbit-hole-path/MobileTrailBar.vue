@@ -51,7 +51,6 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ start: []; go: [title: string] }>()
 
 /* Other readers' paths. Closing them hides the bar until the next article. */
-const topIn = computed(() => props.paths?.in?.[0]?.[0] ?? null)
 const topOut = computed(() => props.paths?.out?.[0]?.[0] ?? null)
 const pathsClosed = ref(false)
 watch(
@@ -62,7 +61,6 @@ watch(
 const showPathsBar = computed(
   () => props.mode === 'paths' && !pathsClosed.value && props.paths !== null,
 )
-const noPaths = computed(() => !topIn.value && !topOut.value)
 const visible = computed(() => props.mode === 'trail' || showPathsBar.value)
 
 /*
@@ -135,20 +133,11 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
       :class="{ 'trail-bar--open': open, 'trail-bar--tinted': props.tint && !open }"
       :style="barStyle"
     >
-      <!-- Other readers' paths: where most readers come from and go next. -->
+      <!-- Other readers' paths: one line, where most readers go next. -->
       <div v-if="showPathsBar" class="trail-bar__paths">
         <div class="trail-bar__paths-text">
-          <p v-if="noPaths" class="trail-bar__path">No popular path found for this article.</p>
-          <p v-if="topIn" class="trail-bar__path">
-            {{ topIn === props.cameFrom ? 'Like you, most readers come here from' : 'Most readers come here from' }}
-            <a
-              class="trail-bar__path-link"
-              :href="`#${encodeURIComponent(topIn)}`"
-              @click.prevent="emit('go', topIn)"
-              >{{ topIn }}</a
-            >
-          </p>
-          <p v-if="topOut" class="trail-bar__path">
+          <p v-if="!topOut" class="trail-bar__path">No popular path found for this article.</p>
+          <p v-else class="trail-bar__path">
             Most readers go next to
             <a
               class="trail-bar__path-link"
@@ -267,15 +256,13 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   opacity: 0.85;
 }
 
-/* Paths row: larger, body-size text on the bar's colour, links underlined in the same colour. */
+/* Paths row: one slim line of small text on the bar's colour, the link underlined in the same colour. */
 .trail-bar__paths {
   display: flex;
   align-items: center;
-  gap: var(--spacing-75, 12px);
-  padding: var(--spacing-100, 16px) var(--spacing-50, 8px) var(--spacing-100, 16px)
-    var(--spacing-150, 24px);
-  font-size: var(--font-size-medium, 1rem);
-  line-height: var(--line-height-medium, 1.625rem);
+  gap: var(--spacing-50, 8px);
+  padding: var(--spacing-25, 4px) var(--spacing-25, 4px) var(--spacing-25, 4px)
+    var(--spacing-100, 16px);
 }
 
 .trail-bar__paths-text {
