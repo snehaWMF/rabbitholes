@@ -9,7 +9,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CdxDialog, CdxIcon } from '@wikimedia/codex'
-import { cdxIconExpand, cdxIconLock } from '@wikimedia/codex-icons'
+import { cdxIconExpand, cdxIconLock, cdxIconMapTrail } from '@wikimedia/codex-icons'
 
 import ChromeHeader from '@/components/chrome/ChromeHeader.vue'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
@@ -167,13 +167,17 @@ function select(item: Item) {
             @click="select(item)"
           >
             <!-- Pictures: a saved page's lead image; a rabbit hole's first and last, side by side. -->
+            <!-- A rabbit hole always gets the picture box, marked with the trail icon. -->
             <span
-              v-if="item.kind === 'hole' ? holeImages(item).length : articleSummary(item.title)?.thumbnail"
+              v-if="item.kind === 'hole' || articleSummary(item.title)?.thumbnail"
               class="saved__image"
               :class="{ 'saved__image--pair': item.kind === 'hole' && holeImages(item).length > 1 }"
             >
               <template v-if="item.kind === 'hole'">
                 <img v-for="src in holeImages(item)" :key="src" :src="src" alt="" />
+                <span class="saved__badge" title="Rabbit hole">
+                  <CdxIcon :icon="cdxIconMapTrail" size="small" />
+                </span>
               </template>
               <img v-else :src="articleSummary(item.title)?.thumbnail ?? ''" alt="" />
             </span>
@@ -305,6 +309,7 @@ function select(item: Item) {
 }
 
 .saved__image {
+  position: relative;
   display: flex;
   gap: 2px;
   aspect-ratio: 1 / 0.95;
@@ -345,6 +350,26 @@ function select(item: Item) {
   color: var(--color-subtle);
 }
 
+/* Rabbit holes: the map-trail icon in a white circle on the picture's corner. */
+.saved__badge {
+  position: absolute;
+  inset-block-start: var(--spacing-50, 8px);
+  inset-inline-start: var(--spacing-50, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--border-radius-circle, 50%);
+  background-color: var(--background-color-base, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  color: var(--color-base);
+}
+
+.saved__badge .cdx-icon {
+  color: inherit;
+}
+
 /* Mobile: a list, picture on the left. */
 [data-skin='mobile'] .saved__items {
   display: block;
@@ -373,6 +398,13 @@ function select(item: Item) {
   flex: none;
   inline-size: 4.5rem;
   aspect-ratio: 1;
+}
+
+[data-skin='mobile'] .saved__badge {
+  inset-block-start: var(--spacing-25, 4px);
+  inset-inline-start: var(--spacing-25, 4px);
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
 }
 
 [data-skin='mobile'] .saved__name {
