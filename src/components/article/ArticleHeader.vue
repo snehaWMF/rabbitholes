@@ -48,8 +48,9 @@ interface Props {
    */
   toolsMenu?: boolean
   /**
-   * Desktop only: the reader toolbar — **Read · View source · View history ·
+   * The reader toolbar. Desktop: **Read · View source · View history ·
    * ☆ Watch** plus a bookmark **Save** button (emits **`saveClick`**).
+   * Mobile (logged in): the bookmark **Save** button replaces the ☆ icon.
    */
   readerToolbar?: boolean
   /** **`readerToolbar`**: the page is saved — the bookmark shows filled. */
@@ -278,7 +279,19 @@ function onLanguagePick(row: ArticleLanguageLink) {
         </button>
       </div>
       <template v-else>
+        <!-- Reader toolbar: the bookmark Save button takes the star's place. -->
         <button
+          v-if="props.readerToolbar"
+          type="button"
+          class="article-header__icon-tool"
+          :aria-label="props.saved ? 'Saved' : 'Save'"
+          :aria-pressed="props.saved"
+          @click="$emit('saveClick')"
+        >
+          <CdxIcon :icon="props.saved ? cdxIconBookmark : cdxIconBookmarkOutline" />
+        </button>
+        <button
+          v-else
           type="button"
           class="article-header__icon-tool"
           aria-label="Watch"
