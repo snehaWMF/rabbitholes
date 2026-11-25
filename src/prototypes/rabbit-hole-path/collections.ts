@@ -20,7 +20,7 @@ export interface Collection {
  * SEED_VERSION to reset everyone's saved items to it.
  */
 const SEED_KEY = 'protowiki:rabbit-hole-collections-seed'
-const SEED_VERSION = 'v2'
+const SEED_VERSION = 'v3'
 
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
@@ -30,7 +30,7 @@ function seedCollections(): Collection[] {
   return [
     {
       name: 'Octopus rabbit hole',
-      articles: ['Octopus', 'Paul the Octopus', '2010 FIFA World Cup final', 'Andrés Iniesta'],
+      articles: ['Octopus', 'Kraken', 'Giant squid', 'Moby-Dick'],
       links: 3,
       createdAt: daysAgo(1),
     },
