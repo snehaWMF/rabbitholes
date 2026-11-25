@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { CLICKSTREAM_MONTH, type ArticlePaths } from './useClickstream'
+import type { ArticlePaths } from './useClickstream'
 
 interface Props {
   /** `null` while loading; `{}` when the article has no clickstream data. */
@@ -21,8 +21,6 @@ const topOut = computed(() => props.paths?.out?.[0]?.[0] ?? null)
 const sameAsReader = computed(() => !!topIn.value && topIn.value === props.cameFrom)
 /** Loaded, but this article has no common path in or out. */
 const noData = computed(() => props.paths !== null && !topIn.value && !topOut.value)
-
-const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy_policy'
 </script>
 
 <template>
@@ -57,20 +55,14 @@ const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy
       >
     </p>
 
-    <p v-if="topIn || topOut" class="common-paths__source">
-      Based on Wikipedia link clicks, {{ CLICKSTREAM_MONTH }} ·
-      <a class="common-paths__link" :href="PRIVACY_POLICY_URL" target="_blank" rel="noopener"
-        >Privacy policy</a
-      >
-    </p>
   </section>
 </template>
 
 <style scoped>
 /* Every piece of text here is the Codex "Small" style, to sit with the trail. */
 .common-paths {
-  /* Room for the fullest version: heading, two two-line paths, two-line source. */
-  min-block-size: 11.5rem;
+  /* Room for the fullest version: heading and two two-line paths. */
+  min-block-size: 8rem;
   margin-block-start: var(--spacing-150, 24px);
   font-family: var(--font-family-system-sans, system-ui, sans-serif);
   font-size: var(--font-size-small);
@@ -109,11 +101,4 @@ const PRIVACY_POLICY_URL = 'https://foundation.wikimedia.org/wiki/Policy:Privacy
   color: var(--color-subtle);
 }
 
-/* Same footnote size as "spent 2m" in the trail. */
-.common-paths__source {
-  margin: 0;
-  font-size: var(--font-size-x-small, 0.75rem);
-  line-height: var(--line-height-x-small, 1.25rem);
-  color: var(--color-subtle);
-}
 </style>

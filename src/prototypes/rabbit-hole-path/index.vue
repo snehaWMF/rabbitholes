@@ -30,7 +30,6 @@ import RabbitHoleTrail from './RabbitHoleTrail.vue'
 import TableOfContents, { type TocSection } from './TableOfContents.vue'
 import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
-import { formatDuration } from './formatDuration'
 import { useClickstream } from './useClickstream'
 import { useRabbitHole } from './useRabbitHole'
 
@@ -124,29 +123,31 @@ function titleFromQuery(): string | null {
   return raw ? raw.replace(/_/g, ' ') : null
 }
 
-const { trail, times, idles, current, ended, article, follow, end, start } = useRabbitHole(
+const { trail, current, ended, offPath, article, follow, jump, end, start } = useRabbitHole(
   titleFromQuery() ?? START_ARTICLE,
 )
 
 const { paths } = useClickstream(article)
 /** The step before this one in the reader's own trail, to compare with everyone else's. */
 const cameFrom = computed(() =>
-  !ended.value && current.value > 0 ? trail.value[current.value - 1] : null,
+  !ended.value && !offPath.value && current.value > 0 ? trail.value[current.value - 1] : null,
 )
 
+/* Search isn't a link from the article being read, so it takes the reader off the path. */
 provideChromeSearchHandlers({
   onSelect(title) {
-    goTo(title)
+    goTo(title, { search: true })
   },
   onSubmit({ title }) {
-    if (title) goTo(title)
+    if (title) goTo(title, { search: true })
   },
 })
 
 /** Open an article in the prototype: trail step, new history entry, back to the top. */
-function goTo(title: string) {
+function goTo(title: string, how: { search?: boolean; fromTrail?: boolean } = {}) {
   sheetOpen.value = false
-  follow(title)
+  if (how.search) jump(title)
+  else follow(title, { fromTrail: how.fromTrail })
   window.scrollTo({ top: 0 })
   if (titleFromQuery() !== title) {
     void router.push({ query: { ...route.query, article: title.replace(/ /g, '_') } })
@@ -207,8 +208,7 @@ watch(ended, (value) => {
 async function shareTrail(): Promise<boolean> {
   const steps = trail.value.map((t, i) => {
     const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}`
-    const spent = times.value[i] > 0 ? ` (spent ${formatDuration(times.value[i])})` : ''
-    return `${i + 1}. ${t}${spent} — ${url}`
+    return `${i + 1}. ${t} — ${url}`
   })
   const text = `My Wikipedia rabbit hole:\n${steps.join('\n')}`
   try {
@@ -255,7 +255,7 @@ function onSave() {
 
 /** Picking an earlier step reopens it as the next link in the chain. */
 function revisit(index: number) {
-  goTo(trail.value[index])
+  goTo(trail.value[index], { fromTrail: true })
 }
 
 /* ── Table of contents: the article's h2 sections, with the one in view marked ── */
@@ -403,15 +403,16 @@ function onArticleClick(event: MouseEvent) {
           <RabbitHoleTrail
             v-if="showTrail"
             :trail="trail"
-            :times="times"
-            :idles="idles"
             :current="current"
             :ended="ended"
-            @revisit="revisit"
+            :off-path="offPath"
             :saved="savedArticles"
+            hideable
+            @revisit="revisit"
             @end="requestStop"
             @share="shareNow"
             @start="start"
+            @hide="showTrail = false"
           />
           <CommonPaths v-if="showPaths" :paths="paths" :came-from="cameFrom" @go="goTo" />
         </div>
@@ -423,6 +424,7 @@ function onArticleClick(event: MouseEvent) {
       v-model:open="sheetOpen"
       :mode="mobileBarMode"
       :ended="ended"
+      :off-path="offPath"
       :steps="trail.length"
       :current="article"
       :tint="barTint"
@@ -433,10 +435,9 @@ function onArticleClick(event: MouseEvent) {
     >
       <RabbitHoleTrail
         :trail="trail"
-        :times="times"
-        :idles="idles"
         :current="current"
         :ended="ended"
+        :off-path="offPath"
         :saved="savedArticles"
         :fit="false"
         @revisit="revisit"

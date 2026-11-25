@@ -3,17 +3,15 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
 import { cdxIconPlay, cdxIconShare, cdxIconStop } from '@wikimedia/codex-icons'
 
-import { formatDuration } from './formatDuration'
-
 interface Props {
   trail: string[]
-  /** Milliseconds spent on each entry; shown only once the reader has moved on. */
-  times: number[]
-  /** Milliseconds idle (no scrolling) on each entry; shown once the idle stretch ends. */
-  idles: number[]
   current: number
   /** Tracking ended — no trail, just the option to start again. */
   ended: boolean
+  /** The reader searched away from the trail; its last article is the way back. */
+  offPath?: boolean
+  /** Show a "hide" button by the heading (desktop sidebar). */
+  hideable?: boolean
   /** Articles in the reader's saved items — marked "saved" under their title. */
   saved?: string[]
   /**
@@ -23,14 +21,25 @@ interface Props {
   fit?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { saved: () => [], fit: true })
+const props = withDefaults(defineProps<Props>(), {
+  saved: () => [],
+  fit: true,
+  offPath: false,
+  hideable: false,
+})
 
 const emit = defineEmits<{
   revisit: [index: number]
   share: []
   end: []
   start: []
+  hide: []
 }>()
+
+/** The step the reader is on — none while they're off the path. */
+function isHere(index: number) {
+  return index === props.current && !props.offPath
+}
 
 /*
  * The list scrolls on its own past MAX_VISIBLE_STEPS articles — or sooner,
@@ -58,9 +67,7 @@ async function fitList() {
   const listTop = listRect.top + window.scrollY
   const windowRoom = Math.max(MIN_LIST_PX, window.innerHeight - listTop - below - GAP_BELOW_PX)
   // Bottom of the last article that fits under the cap (offsetTop is from the list).
-  const steps = list.querySelectorAll<HTMLElement>(
-    '.rabbit-hole__item:not(.rabbit-hole__item--idle)',
-  )
+  const steps = list.querySelectorAll<HTMLElement>('.rabbit-hole__item')
   const lastVisible = steps[MAX_VISIBLE_STEPS - 1]
   const stepsRoom =
     steps.length > MAX_VISIBLE_STEPS && lastVisible
@@ -75,7 +82,7 @@ async function fitList() {
 
 let railObserver: ResizeObserver | null = null
 
-watch(() => [props.trail.length, props.idles.join(), props.ended], fitList)
+watch(() => [props.trail.length, props.ended, props.offPath], fitList)
 onMounted(() => {
   fitList()
   window.addEventListener('resize', fitList)
@@ -91,38 +98,37 @@ onBeforeUnmount(() => {
   railObserver?.disconnect()
 })
 
-/** The quiet line under a title: "spent 18m", "spent 18m, saved" or "saved". */
-function metaFor(index: number, title: string) {
-  const parts: string[] = []
-  if (showTime(index)) parts.push(`spent ${formatDuration(props.times[index])}`)
-  if (props.saved.includes(title)) parts.push('saved')
-  return parts.join(', ')
-}
-
-/** Time is only shown for pages the reader has already moved on from. */
-function showTime(index: number) {
-  return index !== props.current && (props.times[index] ?? 0) > 0
+/** The quiet line under a title, for pages in the reader's saved items. */
+function metaFor(title: string) {
+  return props.saved.includes(title) ? 'saved' : ''
 }
 </script>
 
 <template>
   <nav ref="navRef" class="rabbit-hole" aria-labelledby="rabbit-hole-heading">
-    <!-- Heading with Start / End at its right end — never moves as the trail grows. -->
+    <!-- Heading (with "hide" beside it on desktop), and End at the right once started. -->
     <div class="rabbit-hole__header">
-      <h2 id="rabbit-hole-heading" class="rabbit-hole__heading">Your rabbit hole</h2>
-      <button
-        type="button"
-        class="rabbit-hole__toggle"
-        @click="props.ended ? emit('start') : emit('end')"
-      >
-        <CdxIcon :icon="props.ended ? cdxIconPlay : cdxIconStop" size="small" />
-        {{ props.ended ? 'Start' : 'End' }}
+      <h2 id="rabbit-hole-heading" class="rabbit-hole__heading">
+        Your rabbit hole
+        <button
+          v-if="props.hideable"
+          type="button"
+          class="rabbit-hole__hide"
+          @click="emit('hide')"
+        >
+          hide
+        </button>
+      </h2>
+      <button v-if="!props.ended" type="button" class="rabbit-hole__toggle" @click="emit('end')">
+        <CdxIcon :icon="cdxIconStop" size="small" />
+        End
       </button>
     </div>
 
-    <p v-if="props.ended" class="rabbit-hole__empty">
-      Select Start to see the trail of pages you follow.
-    </p>
+    <button v-if="props.ended" type="button" class="rabbit-hole__start" @click="emit('start')">
+      <CdxIcon :icon="cdxIconPlay" size="small" />
+      Start your rabbit hole
+    </button>
 
     <template v-else>
       <ol
@@ -134,11 +140,11 @@ function showTime(index: number) {
         <template v-for="(title, index) in props.trail" :key="`${index}-${title}`">
           <li
             class="rabbit-hole__item"
-            :class="{ 'rabbit-hole__item--current': index === props.current }"
+            :class="{ 'rabbit-hole__item--current': isHere(index) }"
           >
             <span class="rabbit-hole__marker" aria-hidden="true" />
             <span class="rabbit-hole__text">
-              <span v-if="index === props.current" class="rabbit-hole__label" aria-current="page">
+              <span v-if="isHere(index)" class="rabbit-hole__label" aria-current="page">
                 {{ title }}
               </span>
               <a
@@ -149,23 +155,25 @@ function showTime(index: number) {
               >
                 {{ title }}
               </a>
-              <span v-if="metaFor(index, title)" class="rabbit-hole__time">
-                {{ metaFor(index, title) }}
+              <span v-if="metaFor(title)" class="rabbit-hole__meta">
+                {{ metaFor(title) }}
               </span>
             </span>
           </li>
-          <li
-            v-if="(props.idles[index] ?? 0) > 0"
-            class="rabbit-hole__item rabbit-hole__item--idle"
-          >
-            <span class="rabbit-hole__marker rabbit-hole__marker--none" aria-hidden="true" />
-            <span class="rabbit-hole__label"
-              >Idle for {{ formatDuration(props.idles[index]) }}</span
-            >
-          </li>
         </template>
+        <!-- Searched away: a broken line to a note pointing back to the last article. -->
+        <li v-if="props.offPath" class="rabbit-hole__item rabbit-hole__item--off">
+          <span class="rabbit-hole__marker" aria-hidden="true" />
+          <span class="rabbit-hole__label">
+            You've veered off the path. When you're ready, select the last article above to
+            continue your journey.
+          </span>
+        </li>
         <!-- Before the first link: an empty next step on the path, waiting to be filled. -->
-        <li v-if="props.trail.length === 1" class="rabbit-hole__item rabbit-hole__item--next">
+        <li
+          v-else-if="props.trail.length === 1"
+          class="rabbit-hole__item rabbit-hole__item--next"
+        >
           <span class="rabbit-hole__marker" aria-hidden="true" />
           <span class="rabbit-hole__label">Follow a link in the article to start going deeper.</span>
         </li>
@@ -223,10 +231,10 @@ function showTime(index: number) {
   outline-offset: 2px;
 }
 
-/* Heading left, Start / End right, one rule under both. */
+/* Heading (and "hide") left, End right, one rule under both. */
 .rabbit-hole__header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--spacing-50, 8px);
   margin: 0 0 var(--spacing-50, 8px);
@@ -235,9 +243,55 @@ function showTime(index: number) {
 }
 
 .rabbit-hole__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
   margin: 0;
   font: inherit;
   color: var(--color-subtle);
+}
+
+/* Small grey "hide" chip beside the heading, like Vector's sidebar menus. */
+.rabbit-hole__hide {
+  padding: 0 var(--spacing-50, 8px);
+  border: 0;
+  border-radius: var(--border-radius-base, 2px);
+  background-color: var(--background-color-interactive, #eaecf0);
+  font: inherit;
+  color: var(--color-base);
+  cursor: pointer;
+}
+
+.rabbit-hole__hide:hover {
+  background-color: var(--background-color-interactive--hover, #dadde3);
+}
+
+.rabbit-hole__hide:focus-visible,
+.rabbit-hole__start:focus-visible {
+  outline: 2px solid var(--color-progressive);
+  outline-offset: 2px;
+}
+
+/* Not started: "▶ Start your rabbit hole" under the heading. */
+.rabbit-hole__start {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
+  padding: var(--spacing-25, 4px) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-subtle);
+  cursor: pointer;
+}
+
+.rabbit-hole__start .cdx-icon {
+  color: var(--color-base);
+}
+
+.rabbit-hole__start:hover {
+  color: var(--color-base);
+  text-decoration: underline;
 }
 
 .rabbit-hole__list {
@@ -310,22 +364,15 @@ function showTime(index: number) {
   transform: translateY(-1px);
 }
 
-/* Idle stretch: a dashed gap in the line, no dot, quiet text. */
-.rabbit-hole__item--idle {
-  color: var(--color-subtle);
-}
-
-.rabbit-hole__item--idle::before {
-  border-inline-start-style: dashed;
-}
-
 /* The waiting next step: hollow dot, quiet text. */
-.rabbit-hole__item--next {
+.rabbit-hole__item--next,
+.rabbit-hole__item--off {
   color: var(--color-subtle);
 }
 
-.rabbit-hole__marker--none {
-  visibility: hidden;
+/* Off the path: the line to the note is broken (dashed). */
+.rabbit-hole__item--off::before {
+  border-inline-start-style: dashed;
 }
 
 .rabbit-hole__item--current .rabbit-hole__marker {
@@ -339,7 +386,7 @@ function showTime(index: number) {
   overflow-wrap: anywhere;
 }
 
-/* Title with "Spent 2m" on its own line beneath it. */
+/* Title with "saved" on its own line beneath it. */
 .rabbit-hole__text {
   display: flex;
   flex: 1;
@@ -347,15 +394,16 @@ function showTime(index: number) {
   min-inline-size: 0;
 }
 
-.rabbit-hole__time {
+.rabbit-hole__meta {
   /* Deliberately below Codex "Small" — a quiet footnote to the title. */
   font-size: var(--font-size-x-small, 0.75rem);
   line-height: var(--line-height-x-small, 1.25rem);
   color: var(--color-subtle);
 }
 
+/* Earlier steps are pages the reader has been to: Wikipedia's visited-link purple. */
 a.rabbit-hole__label {
-  color: var(--color-progressive);
+  color: var(--color-visited, #6a60b0);
   text-decoration: none;
 }
 
@@ -363,7 +411,6 @@ a.rabbit-hole__label:hover {
   text-decoration: underline;
 }
 
-.rabbit-hole__empty,
 .rabbit-hole__depth {
   display: flex;
   align-items: center;

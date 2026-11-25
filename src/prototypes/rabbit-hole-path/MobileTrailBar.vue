@@ -19,6 +19,8 @@ interface Props {
   /** Which feature's bar to show. */
   mode: 'trail' | 'paths'
   ended: boolean
+  /** The reader searched away from the trail. */
+  offPath?: boolean
   /** Number of steps in the trail (the start article counts as one). */
   steps: number
   /** The article being read. */
@@ -29,7 +31,12 @@ interface Props {
   cameFrom?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), { tint: null, paths: null, cameFrom: null })
+const props = withDefaults(defineProps<Props>(), {
+  tint: null,
+  paths: null,
+  cameFrom: null,
+  offPath: false,
+})
 
 /* Only the collapsed bar takes the colour; the open sheet stays plain for reading. */
 const barStyle = computed(() =>
@@ -64,6 +71,7 @@ const visible = computed(() => props.mode === 'trail' || showPathsBar.value)
  */
 const summary = computed(() => {
   if (props.ended) return 'Select Start to see your trail'
+  if (props.offPath) return "You've veered off the path"
   if (props.steps <= 1) return 'Follow a link in the article to start going deeper'
   const links = props.steps - 1
   return `${links} ${links === 1 ? 'link' : 'links'} deep`
@@ -435,7 +443,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
   padding-block-end: var(--spacing-50, 8px);
 }
 
-.trail-sheet__body :deep(.rabbit-hole__time) {
+.trail-sheet__body :deep(.rabbit-hole__meta) {
   font-size: var(--font-size-small);
   line-height: var(--line-height-small);
 }

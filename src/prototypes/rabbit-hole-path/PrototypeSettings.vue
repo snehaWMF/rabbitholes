@@ -16,8 +16,7 @@ const showPaths = defineModel<boolean>('showPaths', { required: true })
   <div class="prototype-settings">
     <p class="prototype-settings__note">
       "Other readers' paths" uses a trimmed {{ CLICKSTREAM_DATA_MONTH }} snapshot of Wikipedia link
-      clicks. There's no live API, so it isn't updated; the prototype copy says the previous month,
-      as a live version would, since each month's data is published the month after.
+      clicks. There's no live API, so it isn't updated.
     </p>
 
     <fieldset class="prototype-settings__modules">

@@ -1,146 +1,60 @@
-import { onBeforeUnmount, ref } from 'vue'
+import { ref } from 'vue'
 
 /**
  * Session-scoped rabbit hole: the chain of articles a reader followed by
  * clicking links. Every page load starts with tracking off; the reader
  * selects Start to begin a hole on the article they're reading.
+ *
+ * Searching jumps somewhere the trail doesn't link to, so it takes the
+ * reader off the path: nothing they read there is added. Going back to the
+ * trail's last article (or picking any step in the trail) puts them back on.
  */
-
-/**
- * No scrolling for this long counts as idle. Override for demos with
- * `?idleAfter=<seconds>` in the URL.
- */
-const DEFAULT_IDLE_AFTER_MS = 15 * 60 * 1000
-
-function idleAfterMs() {
-  const param = Number(new URLSearchParams(window.location.search).get('idleAfter'))
-  return param > 0 ? param * 1000 : DEFAULT_IDLE_AFTER_MS
-}
-
-/** Input that means the reader is still reading this page. */
-const ACTIVITY_EVENTS = ['scroll', 'wheel', 'touchmove', 'keydown'] as const
-
 export function useRabbitHole(startArticle: string) {
   const trail = ref<string[]>([startArticle])
-  /** Milliseconds spent reading each trail entry, banked when the reader leaves it. */
-  const times = ref<number[]>([0])
-  /** Milliseconds spent idle on each trail entry — not counted in `times`. */
-  const idles = ref<number[]>([0])
-  /** Index into `trail` of the article being read — always the newest step. */
+  /** Index into `trail` of the reader's place in it — always the newest step. */
   const current = ref(0)
   /** Tracking off: no trail until the reader selects Start. Every visit starts off. */
   const ended = ref(true)
+  /** The reader searched away from the trail and hasn't come back to it yet. */
+  const offPath = ref(false)
 
   /** Article to render — tracked or not. */
   const article = ref(startArticle)
 
-  const IDLE_AFTER_MS = idleAfterMs()
-
   /**
-   * When the reader started on the current article. Only time with the tab
-   * visible counts, so a page left open in the background doesn't inflate it.
+   * Reader followed a link, used Back / Forward, or picked a step in the
+   * trail (`fromTrail`). Each move goes on the end of the chain — revisiting
+   * a page adds it again rather than winding the trail back — unless the
+   * reader is off the path, where only a way back to the trail counts.
    */
-  let enteredAt: number | null = document.hidden ? null : Date.now()
-  /** Last scroll (or key / touch) — the start of any idle stretch. */
-  let lastActivityAt = Date.now()
-  /** Reading time banked since `lastActivityAt`, handed back if that stretch turns out idle. */
-  let bankedSinceActivity = 0
-
-  function setAt(list: typeof times, index: number, value: number) {
-    const next = [...list.value]
-    next[index] = value
-    list.value = next
-  }
-
-  /** Add the time since `enteredAt` to the current entry. */
-  function bankTime() {
-    if (enteredAt === null || ended.value) return
-    const elapsed = Date.now() - enteredAt
-    setAt(times, current.value, (times.value[current.value] ?? 0) + elapsed)
-    bankedSinceActivity += elapsed
-    enteredAt = Date.now()
-  }
-
-  /**
-   * The reader scrolled (or moved on). If nothing happened for longer than
-   * the idle threshold, that whole stretch is moved from reading time to idle.
-   */
-  function markActivity() {
-    const now = Date.now()
-    const quietFor = now - lastActivityAt
-    // Scroll fires constantly; only re-mark (and save) about once a second.
-    if (quietFor < 1000) {
-      lastActivityAt = now
-      return
-    }
-    // Close out reading time up to here, so an idle stretch only hands back its own time.
-    bankTime()
-    if (!ended.value && quietFor >= IDLE_AFTER_MS) {
-      const i = current.value
-      setAt(times, i, Math.max(0, (times.value[i] ?? 0) - bankedSinceActivity))
-      setAt(idles, i, (idles.value[i] ?? 0) + quietFor)
-    }
-    lastActivityAt = now
-    bankedSinceActivity = 0
-  }
-
-  function onVisibilityChange() {
-    if (document.hidden) {
-      bankTime()
-      enteredAt = null
-    } else {
-      // Coming back to the tab isn't scrolling — an away stretch can still count as idle.
-      enteredAt = Date.now()
-    }
-  }
-
-  function onPageHide() {
-    bankTime()
-  }
-
-  document.addEventListener('visibilitychange', onVisibilityChange)
-  window.addEventListener('pagehide', onPageHide)
-  for (const type of ACTIVITY_EVENTS) {
-    window.addEventListener(type, markActivity, { passive: true })
-  }
-  onBeforeUnmount(() => {
-    bankTime()
-    document.removeEventListener('visibilitychange', onVisibilityChange)
-    window.removeEventListener('pagehide', onPageHide)
-    for (const type of ACTIVITY_EVENTS) {
-      window.removeEventListener(type, markActivity)
-    }
-  })
-
-  /**
-   * Reader followed a link, searched, or picked an earlier step in the trail.
-   * Every move goes on the end of the chain — revisiting a page adds it again
-   * rather than winding the trail back.
-   */
-  function follow(title: string) {
+  function follow(title: string, { fromTrail = false } = {}) {
     article.value = title
     if (ended.value) return
-    if (trail.value[current.value] === title) return
-    markActivity()
-    bankTime()
+    if (trail.value[current.value] === title) {
+      offPath.value = false
+      return
+    }
+    if (offPath.value && !fromTrail) return
+    offPath.value = false
     addStep(title)
+  }
+
+  /** Reader searched for an article: off the path until they come back to the trail. */
+  function jump(title: string) {
+    article.value = title
+    if (ended.value) return
+    offPath.value = trail.value[current.value] !== title
   }
 
   function addStep(title: string) {
     trail.value = [...trail.value, title]
-    times.value = [...times.value, 0]
-    idles.value = [...idles.value, 0]
     current.value = trail.value.length - 1
-    bankedSinceActivity = 0
   }
 
   function reset() {
     trail.value = [article.value]
-    times.value = [0]
-    idles.value = [0]
     current.value = 0
-    lastActivityAt = Date.now()
-    bankedSinceActivity = 0
+    offPath.value = false
   }
 
   /** End tracking for this session — and forget what was tracked. */
@@ -153,17 +67,16 @@ export function useRabbitHole(startArticle: string) {
   function start() {
     ended.value = false
     reset()
-    enteredAt = Date.now()
   }
 
   return {
     trail,
-    times,
-    idles,
     current,
     ended,
+    offPath,
     article,
     follow,
+    jump,
     end,
     start,
   }
