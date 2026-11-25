@@ -15,12 +15,12 @@ export interface Collection {
 }
 
 /*
- * Demo data: the saved items page starts with three rabbit holes and two
- * saved articles (all with pictures). Written once per browser — bump
+ * Demo data: the saved items page starts with two rabbit holes and two
+ * saved articles (all with pictures); the reader's own saves join them. Written once per browser — bump
  * SEED_VERSION to reset everyone's saved items to it.
  */
 const SEED_KEY = 'protowiki:rabbit-hole-collections-seed'
-const SEED_VERSION = 'v1'
+const SEED_VERSION = 'v2'
 
 function daysAgo(days: number) {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
@@ -29,21 +29,10 @@ function daysAgo(days: number) {
 function seedCollections(): Collection[] {
   return [
     {
-      name: "Alice's Adventures in Wonderland rabbit hole",
-      articles: [
-        "Alice's Adventures in Wonderland",
-        'Lewis Carroll',
-        'Christ Church, Oxford',
-        'Oxford',
-      ],
+      name: 'Octopus rabbit hole',
+      articles: ['Octopus', 'Paul the Octopus', '2010 FIFA World Cup final', 'Andrés Iniesta'],
       links: 3,
       createdAt: daysAgo(1),
-    },
-    {
-      name: 'Octopus rabbit hole',
-      articles: ['Octopus', 'Cephalopod intelligence', 'Tool use by animals', 'Sea otter'],
-      links: 3,
-      createdAt: daysAgo(3),
     },
     {
       name: 'Voyager Golden Record rabbit hole',
