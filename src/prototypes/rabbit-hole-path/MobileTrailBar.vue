@@ -19,7 +19,7 @@ interface Props {
   /** Which feature's bar to show. */
   mode: 'trail' | 'paths'
   ended: boolean
-  /** The reader searched away from the trail. */
+  /** The reader jumped to a page the last step doesn't link to. */
   offPath?: boolean
   /** Number of steps in the trail (the start article counts as one). */
   steps: number

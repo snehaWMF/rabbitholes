@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
-import { cdxIconPlay, cdxIconShare, cdxIconStop } from '@wikimedia/codex-icons'
+import { cdxIconPlay, cdxIconStop } from '@wikimedia/codex-icons'
 
 interface Props {
   trail: string[]
   current: number
   /** Tracking ended — no trail, just the option to start again. */
   ended: boolean
-  /** The reader searched away from the trail; its last article is the way back. */
+  /** The reader jumped to a page the last step doesn't link to; that step is the way back. */
   offPath?: boolean
   /** Show a "hide" button by the heading (desktop sidebar). */
   hideable?: boolean
@@ -30,7 +30,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   revisit: [index: number]
-  share: []
   end: []
   start: []
   hide: []
@@ -161,7 +160,7 @@ function metaFor(title: string) {
             </span>
           </li>
         </template>
-        <!-- Searched away: a broken line to a note pointing back to the last article. -->
+        <!-- Jumped to a page the last step doesn't link to: a broken line to a note pointing back to the last article. -->
         <li v-if="props.offPath" class="rabbit-hole__item rabbit-hole__item--off">
           <span class="rabbit-hole__marker" aria-hidden="true" />
           <span class="rabbit-hole__label">
@@ -180,15 +179,6 @@ function metaFor(title: string) {
       </ol>
       <p v-if="props.trail.length > 1" class="rabbit-hole__depth">
         {{ props.trail.length - 1 }} {{ props.trail.length - 1 === 1 ? 'link' : 'links' }} deep
-        <button
-          type="button"
-          class="rabbit-hole__share"
-          aria-label="Share your rabbit hole"
-          title="Share your rabbit hole"
-          @click="emit('share')"
-        >
-          <CdxIcon :icon="cdxIconShare" size="x-small" />
-        </button>
       </p>
     </template>
   </nav>
@@ -419,27 +409,4 @@ a.rabbit-hole__label:hover {
   color: var(--color-subtle);
 }
 
-/* A small, quiet icon button beside "N links deep". */
-.rabbit-hole__share {
-  display: inline-flex;
-  padding: 2px;
-  border: 0;
-  border-radius: var(--border-radius-base, 2px);
-  background: none;
-  color: var(--color-subtle);
-  cursor: pointer;
-}
-
-.rabbit-hole__share:hover {
-  color: var(--color-base);
-  background-color: var(--background-color-interactive-subtle);
-}
-
-.rabbit-hole__share:focus-visible {
-  outline: 2px solid var(--color-progressive);
-}
-
-.rabbit-hole__share .cdx-icon {
-  color: inherit;
-}
 </style>

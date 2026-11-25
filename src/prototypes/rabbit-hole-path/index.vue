@@ -123,7 +123,7 @@ function titleFromQuery(): string | null {
   return raw ? raw.replace(/_/g, ' ') : null
 }
 
-const { trail, current, ended, offPath, article, follow, jump, end, start } = useRabbitHole(
+const { trail, current, ended, offPath, article, visit, setLinks, end, start } = useRabbitHole(
   titleFromQuery() ?? START_ARTICLE,
 )
 
@@ -133,21 +133,19 @@ const cameFrom = computed(() =>
   !ended.value && !offPath.value && current.value > 0 ? trail.value[current.value - 1] : null,
 )
 
-/* Search isn't a link from the article being read, so it takes the reader off the path. */
 provideChromeSearchHandlers({
   onSelect(title) {
-    goTo(title, { search: true })
+    goTo(title)
   },
   onSubmit({ title }) {
-    if (title) goTo(title, { search: true })
+    if (title) goTo(title)
   },
 })
 
 /** Open an article in the prototype: trail step, new history entry, back to the top. */
-function goTo(title: string, how: { search?: boolean; fromTrail?: boolean } = {}) {
+function goTo(title: string) {
   sheetOpen.value = false
-  if (how.search) jump(title)
-  else follow(title, { fromTrail: how.fromTrail })
+  visit(title)
   window.scrollTo({ top: 0 })
   if (titleFromQuery() !== title) {
     void router.push({ query: { ...route.query, article: title.replace(/ /g, '_') } })
@@ -155,15 +153,15 @@ function goTo(title: string, how: { search?: boolean; fromTrail?: boolean } = {}
 }
 
 /*
- * Back / Forward change the address without going through `goTo`. Treat the
- * article they land on like any other move: it goes on the end of the trail.
+ * Back / Forward change the address without going through `goTo`. The
+ * article they land on joins the trail only if the last step links to it.
  */
 watch(
   () => route.query.article,
   () => {
     const title = titleFromQuery() ?? START_ARTICLE
     if (title === article.value) return
-    follow(title)
+    visit(title)
     window.scrollTo({ top: 0 })
   },
 )
@@ -227,11 +225,6 @@ async function shareAndStop() {
   end()
 }
 
-/** The share icon by the trail: share without ending anything (no confirmation). */
-function shareNow() {
-  void shareTrail()
-}
-
 /*
  * ── Saved items ──
  * The toolbar's bookmark saves the page being read (and fills in); pressing
@@ -253,9 +246,9 @@ function onSave() {
   savedArticles.value = collectionArticles()
 }
 
-/** Picking an earlier step reopens it as the next link in the chain. */
+/** Picking a step in the trail opens it; going back to the last step rejoins the path. */
 function revisit(index: number) {
-  goTo(trail.value[index], { fromTrail: true })
+  goTo(trail.value[index])
 }
 
 /* ── Table of contents: the article's h2 sections, with the one in view marked ── */
@@ -275,6 +268,13 @@ async function tintBar(root: HTMLElement) {
 
 function onParserReady(root: HTMLElement) {
   void tintBar(root)
+  // What this article links to: the next trail step must be one of these.
+  setLinks(
+    article.value,
+    [...root.querySelectorAll<HTMLAnchorElement>('a[href]')]
+      .map(articleTitleFromLink)
+      .filter((t): t is string => !!t),
+  )
   const headings = [...root.querySelectorAll<HTMLElement>('h2[id]')]
   tocSections.value = headings.map((h) => ({ id: h.id, text: h.textContent?.trim() ?? '' }))
   activeSection.value = null
@@ -410,7 +410,6 @@ function onArticleClick(event: MouseEvent) {
             hideable
             @revisit="revisit"
             @end="requestStop"
-            @share="shareNow"
             @start="start"
             @hide="showTrail = false"
           />
@@ -442,7 +441,6 @@ function onArticleClick(event: MouseEvent) {
         :fit="false"
         @revisit="revisit"
         @end="requestStop"
-        @share="shareNow"
         @start="start"
       />
     </MobileTrailBar>
