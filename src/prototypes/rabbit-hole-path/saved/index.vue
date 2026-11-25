@@ -1,137 +1,405 @@
 <script setup lang="ts">
 /**
- * The reader's saved items: rabbit holes they kept (in the order they read
- * them) and loose saved pages. Reached from the header's saved-items icon,
- * or the "View" button on the toast after saving a rabbit hole.
+ * The reader's saved items, as on Wikipedia: pages they saved and rabbit
+ * holes they kept, most recent first. Desktop shows a grid of cards; mobile
+ * a list. A rabbit hole's card shows its first and last articles (with a
+ * picture of each) and how deep it went; selecting it shows the whole path.
+ * Reached from the header's saved icon, or "View" on the toast after saving.
  */
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { CdxDialog, CdxIcon } from '@wikimedia/codex'
+import { cdxIconExpand, cdxIconLock } from '@wikimedia/codex-icons'
 
 import ChromeHeader from '@/components/chrome/ChromeHeader.vue'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
+import type { ChromeNavTool } from '@/components/chrome/headerNavTools'
 import SpecialPageWrapper from '@/components/SpecialPageWrapper.vue'
 
+import { articleSummary } from '../articleSummary'
 import { loadCollections, SAVED_PAGES_COLLECTION } from '../collections'
 
 const USERNAME = 'Username'
+const NAV_TOOLS: ChromeNavTool[] = ['appearance', 'notifications', 'notices', 'bookmarks', 'user']
 
 const route = useRoute()
 const router = useRouter()
 
-/** Newest first; the standing "Saved pages" list sits after the rabbit holes. */
-const collections = computed(() =>
-  loadCollections()
-    .filter((c) => c.articles.length)
-    .sort((a, b) => {
-      if (a.name === SAVED_PAGES_COLLECTION) return 1
-      if (b.name === SAVED_PAGES_COLLECTION) return -1
-      return b.createdAt.localeCompare(a.createdAt)
-    }),
+interface PageItem {
+  kind: 'page'
+  key: string
+  title: string
+  date: string
+}
+
+interface HoleItem {
+  kind: 'hole'
+  key: string
+  first: string
+  last: string
+  links: number
+  articles: string[]
+  date: string
+}
+
+type Item = PageItem | HoleItem
+
+/** Everything saved, most recent first. */
+const items = computed<Item[]>(() => {
+  const out: Item[] = []
+  for (const c of loadCollections()) {
+    if (!c.articles.length) continue
+    if (c.name === SAVED_PAGES_COLLECTION) {
+      for (const title of c.articles) {
+        out.push({ kind: 'page', key: `page-${title}`, title, date: c.savedAt?.[title] ?? c.createdAt })
+      }
+    } else {
+      out.push({
+        kind: 'hole',
+        key: `hole-${c.createdAt}`,
+        first: c.articles[0],
+        last: c.articles[c.articles.length - 1],
+        links: c.links ?? c.articles.length - 1,
+        articles: c.articles,
+        date: c.createdAt,
+      })
+    }
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date))
+})
+
+/** "All items", or "Collections" — for now, the rabbit holes. */
+const tab = ref<'all' | 'collections'>('all')
+const shown = computed(() =>
+  tab.value === 'all' ? items.value : items.value.filter((i) => i.kind === 'hole'),
 )
 
-/** The collection just saved (`?saved=<createdAt>`), marked and scrolled to. */
-const justSaved = ref(typeof route.query.saved === 'string' ? route.query.saved : null)
+/** The rabbit hole just saved (`?saved=<createdAt>`): marked, and scrolled to. */
+const justSaved = typeof route.query.saved === 'string' ? `hole-${route.query.saved}` : null
 
 onMounted(async () => {
   await nextTick()
-  if (justSaved.value) {
-    document.getElementById(`saved-${justSaved.value}`)?.scrollIntoView({ block: 'center' })
-  }
+  if (justSaved) document.getElementById(justSaved)?.scrollIntoView({ block: 'center' })
 })
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' })
+function linksDeep(links: number) {
+  return `Rabbit hole · ${links} ${links === 1 ? 'link' : 'links'} deep`
+}
+
+/** A rabbit hole's pictures: its first and last articles' (whichever exist). */
+function holeImages(item: HoleItem) {
+  const titles = item.first === item.last ? [item.first] : [item.first, item.last]
+  return titles.map((t) => articleSummary(t)?.thumbnail).filter((src): src is string => !!src)
 }
 
 function open(title: string) {
   void router.push({ path: '/rabbit-hole-path', query: { article: title.replace(/ /g, '_') } })
+}
+
+/* Selecting a rabbit hole shows its whole path. */
+const openHole = ref<HoleItem | null>(null)
+const dialogOpen = computed({
+  get: () => openHole.value !== null,
+  set: (value) => {
+    if (!value) openHole.value = null
+  },
+})
+
+function select(item: Item) {
+  if (item.kind === 'page') open(item.title)
+  else openHole.value = item
 }
 </script>
 
 <template>
   <ChromeWrapper :username="USERNAME" :last-edited-notice="false">
     <template #header>
-      <ChromeHeader :username="USERNAME" @bookmarks-click="router.push('/rabbit-hole-path/saved')" />
+      <ChromeHeader
+        :username="USERNAME"
+        :nav-tools="NAV_TOOLS"
+        @bookmarks-click="router.push('/rabbit-hole-path/saved')"
+      />
     </template>
-    <SpecialPageWrapper title="Saved items">
-      <p v-if="!collections.length" class="saved__empty">
+
+    <SpecialPageWrapper help>
+      <template #title>
+        <span class="saved__title">
+          Saved
+          <CdxIcon :icon="cdxIconLock" size="small" class="saved__lock" />
+        </span>
+      </template>
+
+      <div class="saved__tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="saved__tab"
+          :aria-selected="tab === 'all'"
+          @click="tab = 'all'"
+        >
+          All items
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="saved__tab"
+          :aria-selected="tab === 'collections'"
+          @click="tab = 'collections'"
+        >
+          Collections
+          <CdxIcon :icon="cdxIconExpand" size="small" />
+        </button>
+      </div>
+
+      <p class="saved__sort">Sorted by most recent</p>
+
+      <p v-if="!shown.length" class="saved__empty">
         Nothing saved yet. Save a rabbit hole when you end it, or save a page with the bookmark
         icon.
       </p>
 
-      <section
-        v-for="collection in collections"
-        :id="`saved-${collection.createdAt}`"
-        :key="collection.createdAt + collection.name"
-        class="saved__collection"
-        :class="{ 'saved__collection--new': collection.createdAt === justSaved }"
-      >
-        <h2 class="saved__name">{{ collection.name }}</h2>
-        <p class="saved__meta">
-          {{ collection.articles.length }}
-          {{ collection.articles.length === 1 ? 'article' : 'articles' }}
-          <template v-if="collection.name !== SAVED_PAGES_COLLECTION">
-            · saved {{ formatDate(collection.createdAt) }}
-          </template>
-        </p>
-        <ol class="saved__articles">
-          <li v-for="title in collection.articles" :key="title">
-            <a
-              class="saved__link"
-              :href="`#${encodeURIComponent(title)}`"
-              @click.prevent="open(title)"
-              >{{ title }}</a
+      <ul class="saved__items">
+        <li v-for="item in shown" :id="item.key" :key="item.key">
+          <button
+            type="button"
+            class="saved__card"
+            :class="{ 'saved__card--new': item.key === justSaved }"
+            @click="select(item)"
+          >
+            <!-- Pictures: a saved page's lead image; a rabbit hole's first and last, side by side. -->
+            <span
+              v-if="item.kind === 'hole' ? holeImages(item).length : articleSummary(item.title)?.thumbnail"
+              class="saved__image"
+              :class="{ 'saved__image--pair': item.kind === 'hole' && holeImages(item).length > 1 }"
             >
-          </li>
-        </ol>
-      </section>
+              <template v-if="item.kind === 'hole'">
+                <img v-for="src in holeImages(item)" :key="src" :src="src" alt="" />
+              </template>
+              <img v-else :src="articleSummary(item.title)?.thumbnail ?? ''" alt="" />
+            </span>
+
+            <span class="saved__text">
+              <template v-if="item.kind === 'hole'">
+                <span class="saved__name">
+                  {{ item.first }}<template v-if="item.last !== item.first"> → {{ item.last }}</template>
+                </span>
+                <span class="saved__desc">{{ linksDeep(item.links) }}</span>
+              </template>
+              <template v-else>
+                <span class="saved__name">{{ item.title }}</span>
+                <span class="saved__desc">{{ articleSummary(item.title)?.description }}</span>
+              </template>
+            </span>
+          </button>
+        </li>
+      </ul>
     </SpecialPageWrapper>
+
+    <CdxDialog
+      v-model:open="dialogOpen"
+      :title="openHole ? `${openHole.first} rabbit hole` : ''"
+      :subtitle="openHole ? linksDeep(openHole.links) : ''"
+      use-close-button
+    >
+      <ol v-if="openHole" class="saved__path">
+        <li v-for="title in openHole.articles" :key="title">
+          <a class="saved__path-link" :href="`#${encodeURIComponent(title)}`" @click.prevent="open(title)">
+            {{ title }}
+          </a>
+        </li>
+      </ol>
+    </CdxDialog>
   </ChromeWrapper>
 </template>
 
 <style scoped>
+.saved__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
+}
+
+.saved__lock {
+  color: var(--color-subtle);
+}
+
+.saved__tabs {
+  display: flex;
+  gap: var(--spacing-150, 24px);
+  margin-block: var(--spacing-100, 16px) var(--spacing-150, 24px);
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
+}
+
+.saved__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-25, 4px);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-progressive);
+  cursor: pointer;
+}
+
+.saved__tab .cdx-icon {
+  color: inherit;
+}
+
+.saved__tab[aria-selected='true'] {
+  color: var(--color-base);
+}
+
+.saved__sort {
+  margin: 0 0 var(--spacing-50, 8px);
+  font-size: var(--font-size-x-small, 0.75rem);
+  color: var(--color-base);
+}
+
 .saved__empty {
   color: var(--color-subtle);
 }
 
-.saved__collection {
-  margin-block-end: var(--spacing-150, 24px);
-  padding: var(--spacing-100, 16px);
-  border: var(--border-width-base, 1px) solid var(--border-color-subtle);
-  border-radius: var(--border-radius-base, 2px);
+/* Desktop: a grid of cards. */
+.saved__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 12rem));
+  gap: var(--spacing-100, 16px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-/* The one just saved: a progressive edge so it's easy to spot. */
-.saved__collection--new {
+.saved__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-75, 12px);
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 16rem;
+  padding: var(--spacing-75, 12px);
+  border: var(--border-width-base, 1px) solid var(--border-color-subtle, #c8ccd1);
+  border-radius: var(--border-radius-base, 2px);
+  background: var(--background-color-base, #fff);
+  font: inherit;
+  font-family: var(--font-family-system-sans, system-ui, sans-serif);
+  text-align: start;
+  color: var(--color-base);
+  cursor: pointer;
+}
+
+.saved__card:hover {
+  border-color: var(--border-color-interactive, #a2a9b1);
+}
+
+.saved__card:focus-visible {
+  outline: 2px solid var(--color-progressive);
+  outline-offset: 1px;
+}
+
+/* The rabbit hole just saved: a progressive edge so it's easy to spot. */
+.saved__card--new {
   border-color: var(--border-color-progressive, #36c);
-  box-shadow: inset 4px 0 0 var(--border-color-progressive, #36c);
+  box-shadow: inset 0 0 0 1px var(--border-color-progressive, #36c);
+}
+
+.saved__image {
+  display: flex;
+  gap: 2px;
+  aspect-ratio: 1 / 0.95;
+  overflow: hidden;
+  background-color: var(--background-color-interactive-subtle, #f8f9fa);
+}
+
+.saved__image img {
+  flex: 1;
+  min-inline-size: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.saved__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-25, 4px);
+  min-inline-size: 0;
 }
 
 .saved__name {
-  margin: 0;
-  font-family: var(--font-family-system-sans, system-ui, sans-serif);
-  font-size: var(--font-size-medium, 1rem);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-medium, 1.625rem);
+  line-height: var(--line-height-small);
+  overflow-wrap: anywhere;
 }
 
-.saved__meta {
-  margin: 0 0 var(--spacing-50, 8px);
+.saved__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
   color: var(--color-subtle);
 }
 
-.saved__articles {
+/* Mobile: a list, picture on the left. */
+[data-skin='mobile'] .saved__items {
+  display: block;
+}
+
+[data-skin='mobile'] .saved__items li + li {
+  border-block-start: var(--border-width-base, 1px) solid var(--border-color-subtle, #c8ccd1);
+}
+
+[data-skin='mobile'] .saved__card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--spacing-100, 16px);
+  min-block-size: 0;
+  padding: var(--spacing-100, 16px) 0;
+  border: 0;
+  border-radius: 0;
+}
+
+[data-skin='mobile'] .saved__card--new {
+  box-shadow: inset 4px 0 0 var(--border-color-progressive, #36c);
+  padding-inline-start: var(--spacing-75, 12px);
+}
+
+[data-skin='mobile'] .saved__image {
+  flex: none;
+  inline-size: 4.5rem;
+  aspect-ratio: 1;
+}
+
+[data-skin='mobile'] .saved__name {
+  font-size: var(--font-size-medium, 1rem);
+  line-height: var(--line-height-small);
+}
+
+[data-skin='mobile'] .saved__desc {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.saved__path {
   margin: 0;
   padding-inline-start: var(--spacing-150, 24px);
 }
 
-.saved__link {
+.saved__path li {
+  padding-block: var(--spacing-25, 4px);
+}
+
+.saved__path-link {
   color: var(--color-progressive);
   text-decoration: none;
 }
 
-.saved__link:hover {
+.saved__path-link:hover {
   text-decoration: underline;
 }
 </style>

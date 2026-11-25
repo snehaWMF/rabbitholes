@@ -8,6 +8,10 @@ export interface Collection {
   name: string
   articles: string[]
   createdAt: string
+  /** Rabbit holes: how many links deep the reader went. */
+  links?: number
+  /** Loose saved pages: when each one was saved (ISO), for sorting by most recent. */
+  savedAt?: Record<string, string>
 }
 
 export function loadCollections(): Collection[] {
@@ -18,8 +22,8 @@ export function loadCollections(): Collection[] {
   }
 }
 
-export function createCollection(name: string, articles: string[]): Collection {
-  const collection = { name, articles, createdAt: new Date().toISOString() }
+export function createCollection(name: string, articles: string[], links?: number): Collection {
+  const collection: Collection = { name, articles, createdAt: new Date().toISOString(), links }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...loadCollections(), collection]))
   } catch {
@@ -34,13 +38,16 @@ export const SAVED_PAGES_COLLECTION = 'Saved pages'
 /** Add articles to a named collection (skipping ones already in it), creating it if needed. */
 export function savePagesToCollection(articles: string[], name = SAVED_PAGES_COLLECTION) {
   const collections = loadCollections()
-  const existing = collections.find((c) => c.name === name)
-  if (existing) {
-    for (const article of articles) {
-      if (!existing.articles.includes(article)) existing.articles.push(article)
-    }
-  } else {
-    collections.push({ name, articles: [...articles], createdAt: new Date().toISOString() })
+  const now = new Date().toISOString()
+  let existing = collections.find((c) => c.name === name)
+  if (!existing) {
+    existing = { name, articles: [], createdAt: now }
+    collections.push(existing)
+  }
+  existing.savedAt ??= {}
+  for (const article of articles) {
+    if (!existing.articles.includes(article)) existing.articles.push(article)
+    existing.savedAt[article] = now
   }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(collections))

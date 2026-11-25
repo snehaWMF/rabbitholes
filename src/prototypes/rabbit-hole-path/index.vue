@@ -14,6 +14,7 @@ import { CdxButton, CdxDialog, CdxToastContainer, useToast } from '@wikimedia/co
 
 import ArticleLive from '@/components/article/ArticleLive.vue'
 import ChromeHeader, { type HeaderItem } from '@/components/chrome/ChromeHeader.vue'
+import type { ChromeNavTool } from '@/components/chrome/headerNavTools'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
 import { provideChromeSearchHandlers } from '@/composables/useChromeSearch'
 import { useConfig } from '@/composables/useConfig'
@@ -73,6 +74,8 @@ const mobileBarMode = computed<'trail' | 'paths' | 'both' | null>(() => {
   return null
 })
 const USERNAME = 'Username'
+/** Desktop header icons, as in the designs: the list-with-bookmark one opens saved items. */
+const NAV_TOOLS: ChromeNavTool[] = ['appearance', 'notifications', 'notices', 'bookmarks', 'user']
 
 /*
  * The header's user icon opens the prototype settings. Vector takes it in a
@@ -193,7 +196,7 @@ function stopAndLose() {
 }
 
 function saveSession() {
-  const saved = createCollection(`${trail.value[0]} rabbit hole`, trailPages.value)
+  const saved = createCollection(`${trail.value[0]} rabbit hole`, trailPages.value, depth.value)
   stopDialogOpen.value = false
   end()
   toast.success('Your rabbit hole is saved to your saved items', {
@@ -386,7 +389,12 @@ function onArticleClick(event: MouseEvent) {
 <template>
   <ChromeWrapper :username="USERNAME">
     <template #header>
-      <ChromeHeader :username="USERNAME" :right="minervaRight" @bookmarks-click="openSaved()">
+      <ChromeHeader
+        :username="USERNAME"
+        :right="minervaRight"
+        :nav-tools="NAV_TOOLS"
+        @bookmarks-click="openSaved()"
+      >
         <template #user-menu>
           <UserMenu
             v-model:show-trail="showTrail"
