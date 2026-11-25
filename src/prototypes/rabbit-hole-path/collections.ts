@@ -14,8 +14,58 @@ export interface Collection {
   savedAt?: Record<string, string>
 }
 
+/*
+ * Demo data: the saved items page starts with three rabbit holes and two
+ * saved articles (all with pictures). Written once per browser — bump
+ * SEED_VERSION to reset everyone's saved items to it.
+ */
+const SEED_KEY = 'protowiki:rabbit-hole-collections-seed'
+const SEED_VERSION = 'v1'
+
+function daysAgo(days: number) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+function seedCollections(): Collection[] {
+  return [
+    {
+      name: "Alice's Adventures in Wonderland rabbit hole",
+      articles: [
+        "Alice's Adventures in Wonderland",
+        'Lewis Carroll',
+        'Christ Church, Oxford',
+        'Oxford',
+      ],
+      links: 3,
+      createdAt: daysAgo(1),
+    },
+    {
+      name: 'Octopus rabbit hole',
+      articles: ['Octopus', 'Cephalopod intelligence', 'Tool use by animals', 'Sea otter'],
+      links: 3,
+      createdAt: daysAgo(3),
+    },
+    {
+      name: 'Voyager Golden Record rabbit hole',
+      articles: ['Voyager Golden Record', 'Voyager 1', 'Pale Blue Dot', 'Carl Sagan'],
+      links: 3,
+      createdAt: daysAgo(6),
+    },
+    {
+      name: SAVED_PAGES_COLLECTION,
+      articles: ['Superb fairywren', 'Wombat'],
+      createdAt: daysAgo(9),
+      savedAt: { 'Superb fairywren': daysAgo(2), Wombat: daysAgo(5) },
+    },
+  ]
+}
+
 export function loadCollections(): Collection[] {
   try {
+    if (localStorage.getItem(SEED_KEY) !== SEED_VERSION) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seedCollections()))
+      localStorage.setItem(SEED_KEY, SEED_VERSION)
+    }
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as Collection[]
   } catch {
     return []
