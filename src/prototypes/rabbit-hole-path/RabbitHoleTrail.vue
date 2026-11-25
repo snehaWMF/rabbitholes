@@ -46,7 +46,7 @@ function isHere(index: number) {
  * readers' paths") past the bottom of the window. Heights are measured, so it
  * adapts to wrapped titles and the screen size; the newest step stays in view.
  */
-const MAX_VISIBLE_STEPS = 5
+const MAX_VISIBLE_STEPS = 10
 const GAP_BELOW_PX = 16
 const MIN_LIST_PX = 120
 const navRef = ref<HTMLElement | null>(null)
