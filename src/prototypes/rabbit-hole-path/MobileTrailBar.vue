@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /**
- * Mobile (Minerva) bar pinned to the bottom of the screen. Each feature has
- * its own version for now (a combined one isn't designed yet):
+ * Mobile (Minerva) bar pinned to the bottom of the screen, in one of three
+ * versions:
  * - `trail`: the rabbit hole's state, expanding into a sheet with the full
  *   trail (passed in the default slot);
- * - `paths`: where most readers come from and go next, with a close button.
+ * - `paths`: where most readers go next, with a close button;
+ * - `both`: where most readers go next on the left, and a small rabbit hole
+ *   section on the right (Start, or depth and the arrow to the sheet).
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
@@ -17,7 +19,7 @@ interface Props {
   /** Colour from the article's main image; without one the bar is the header's grey. */
   tint?: Tint | null
   /** Which feature's bar to show. */
-  mode: 'trail' | 'paths'
+  mode: 'trail' | 'paths' | 'both'
   ended: boolean
   /** The reader jumped to a page the last step doesn't link to. */
   offPath?: boolean
@@ -61,7 +63,15 @@ watch(
 const showPathsBar = computed(
   () => props.mode === 'paths' && !pathsClosed.value && props.paths !== null,
 )
-const visible = computed(() => props.mode === 'trail' || showPathsBar.value)
+const hasSheet = computed(() => props.mode === 'trail' || props.mode === 'both')
+const visible = computed(() => hasSheet.value || showPathsBar.value)
+
+/* Both: the rabbit hole's side section reads "Your rabbit hole / N links deep". */
+const depthLabel = computed(() => {
+  if (props.offPath) return 'Off the path'
+  const links = Math.max(0, props.steps - 1)
+  return `${links} ${links === 1 ? 'link' : 'links'} deep`
+})
 
 /*
  * The second line of the bar. For the rabbit hole it follows the reader:
@@ -158,6 +168,46 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
         </button>
       </div>
 
+      <!-- Both: where most readers go next, and the rabbit hole in a small section on the right. -->
+      <div v-if="props.mode === 'both'" v-show="!open" class="trail-bar__both">
+        <p class="trail-bar__path trail-bar__both-paths">
+          <template v-if="props.paths === null" />
+          <template v-else-if="!topOut">No popular path found for this article.</template>
+          <template v-else>
+            Most readers go next to
+            <a
+              class="trail-bar__path-link"
+              :href="`#${encodeURIComponent(topOut)}`"
+              @click.prevent="emit('go', topOut)"
+              >{{ topOut }}</a
+            >
+          </template>
+        </p>
+        <button
+          v-if="props.ended"
+          type="button"
+          class="trail-bar__side trail-bar__side--start"
+          @click="emit('start')"
+        >
+          <CdxIcon :icon="cdxIconPlay" size="small" />
+          <span>Start your rabbit hole</span>
+        </button>
+        <button
+          v-else
+          type="button"
+          class="trail-bar__side"
+          :aria-expanded="open"
+          aria-controls="trail-sheet"
+          @click="open = true"
+        >
+          <span class="trail-bar__side-text">
+            <span>Your rabbit hole</span>
+            <span>{{ depthLabel }}</span>
+          </span>
+          <CdxIcon class="trail-bar__chevron" :icon="cdxIconCollapse" size="small" />
+        </button>
+      </div>
+
       <!-- Rabbit hole, collapsed: one tappable summary row. -->
       <div v-if="props.mode === 'trail'" v-show="!open" class="trail-bar__row">
         <button
@@ -193,7 +243,7 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 
       <!-- Rabbit hole, expanded: the sheet with the full trail. -->
       <section
-        v-if="props.mode === 'trail'"
+        v-if="hasSheet"
         v-show="open"
         id="trail-sheet"
         class="trail-sheet"
@@ -254,6 +304,59 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
 
 .trail-bar--tinted .trail-bar__heading {
   opacity: 0.85;
+}
+
+/* Both: paths text on the left, the rabbit hole's small section on the right. */
+.trail-bar__both {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
+  min-block-size: 3rem;
+  padding-inline-start: var(--spacing-100, 16px);
+}
+
+.trail-bar__both-paths {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.trail-bar__side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
+  align-self: stretch;
+  padding: var(--spacing-50, 8px) var(--spacing-75, 12px) var(--spacing-50, 8px)
+    var(--spacing-50, 8px);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-size-x-small, 0.75rem);
+  line-height: var(--line-height-x-small, 1.25rem);
+  color: inherit;
+  cursor: pointer;
+}
+
+.trail-bar__side .cdx-icon {
+  color: inherit;
+}
+
+/* "Start your / rabbit hole" on two lines beside the play icon. */
+.trail-bar__side--start span {
+  max-inline-size: 5.5rem;
+  text-align: start;
+}
+
+.trail-bar__side-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: end;
+}
+
+.trail-bar__side:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
 }
 
 /* Paths row: one slim line of small text on the bar's colour, the link underlined in the same colour. */

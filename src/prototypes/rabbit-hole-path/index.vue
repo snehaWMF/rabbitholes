@@ -64,12 +64,14 @@ const showTrail = ref(true)
 const showPaths = ref(useSkin().value !== 'mobile')
 
 /*
- * Mobile has a separate bar for each feature; a combined one isn't designed
- * yet, so with both (or neither) selected the bar doesn't show.
+ * Mobile's bottom bar has a version for each feature and one for both; with
+ * neither selected it doesn't show.
  */
-const mobileBarMode = computed<'trail' | 'paths' | null>(() => {
-  if (showTrail.value === showPaths.value) return null
-  return showTrail.value ? 'trail' : 'paths'
+const mobileBarMode = computed<'trail' | 'paths' | 'both' | null>(() => {
+  if (showTrail.value && showPaths.value) return 'both'
+  if (showTrail.value) return 'trail'
+  if (showPaths.value) return 'paths'
+  return null
 })
 const USERNAME = 'Username'
 
