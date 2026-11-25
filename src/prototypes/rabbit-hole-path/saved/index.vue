@@ -9,7 +9,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CdxDialog, CdxIcon } from '@wikimedia/codex'
-import { cdxIconExpand, cdxIconLock, cdxIconMapTrail } from '@wikimedia/codex-icons'
+import { cdxIconLock, cdxIconMapTrail } from '@wikimedia/codex-icons'
 
 import ChromeHeader from '@/components/chrome/ChromeHeader.vue'
 import ChromeWrapper from '@/components/chrome/ChromeWrapper.vue'
@@ -68,11 +68,7 @@ const items = computed<Item[]>(() => {
   return out.sort((a, b) => b.date.localeCompare(a.date))
 })
 
-/** "All items", or "Collections" — for now, the rabbit holes. */
-const tab = ref<'all' | 'collections'>('all')
-const shown = computed(() =>
-  tab.value === 'all' ? items.value : items.value.filter((i) => i.kind === 'hole'),
-)
+const shown = items
 
 /** The rabbit hole just saved (`?saved=<createdAt>`): marked, and scrolled to. */
 const justSaved = typeof route.query.saved === 'string' ? `hole-${route.query.saved}` : null
@@ -129,26 +125,10 @@ function select(item: Item) {
         </span>
       </template>
 
-      <div class="saved__tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          class="saved__tab"
-          :aria-selected="tab === 'all'"
-          @click="tab = 'all'"
-        >
-          All items
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="saved__tab"
-          :aria-selected="tab === 'collections'"
-          @click="tab = 'collections'"
-        >
-          Collections
-          <CdxIcon :icon="cdxIconExpand" size="small" />
-        </button>
+      <!-- "Collections" is a placeholder in this prototype: shown, not clickable. -->
+      <div class="saved__tabs">
+        <span class="saved__tab saved__tab--current">All items</span>
+        <span class="saved__tab">Collections</span>
       </div>
 
       <p class="saved__sort">Sorted by most recent</p>
@@ -235,23 +215,11 @@ function select(item: Item) {
 }
 
 .saved__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-25, 4px);
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
   font-weight: var(--font-weight-bold);
   color: var(--color-progressive);
-  cursor: pointer;
 }
 
-.saved__tab .cdx-icon {
-  color: inherit;
-}
-
-.saved__tab[aria-selected='true'] {
+.saved__tab--current {
   color: var(--color-base);
 }
 
