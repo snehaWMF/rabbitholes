@@ -23,6 +23,9 @@ import Search, { type SearchSubmitPayload } from '../Search.vue'
 
 const chromeSearchHandlers = useChromeSearchHandlers()
 
+/** Optional: the bookmarks icon was clicked (it's a mock unless something listens). */
+const emit = defineEmits<{ bookmarksClick: [] }>()
+
 const { user } = useConfig()
 
 /** Fallback EN CDN SVGs — override via **`wordmarkSrc`** / **`taglineSrc`**. */
@@ -182,7 +185,12 @@ function handleSearchSubmit(payload: SearchSubmitPayload) {
           <CdxButton v-if="navHas('notices')" weight="quiet" aria-label="Notices">
             <CdxIcon :icon="cdxIconTray" />
           </CdxButton>
-          <CdxButton v-if="navHas('bookmarks')" weight="quiet" aria-label="Bookmarks">
+          <CdxButton
+            v-if="navHas('bookmarks')"
+            weight="quiet"
+            aria-label="Bookmarks"
+            @click="emit('bookmarksClick')"
+          >
             <CdxIcon :icon="cdxIconBookmarkList" />
           </CdxButton>
           <CdxButton v-if="navHas('watchlist')" weight="quiet" aria-label="Watchlist">

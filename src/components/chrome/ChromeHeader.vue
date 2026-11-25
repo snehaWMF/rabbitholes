@@ -34,6 +34,9 @@ interface Props {
   right?: HeaderItem[]
 }
 
+/** Desktop: the bookmarks icon was clicked (forwarded from the Vector header). */
+const emit = defineEmits<{ bookmarksClick: [] }>()
+
 const props = withDefaults(defineProps<Props>(), {
   skin: undefined,
   theme: undefined,
@@ -106,6 +109,7 @@ const minervaRight = computed((): HeaderItem[] | undefined => props.right)
     :wordmark-src="props.wordmarkSrc"
     :tagline-src="props.taglineSrc"
     :nav-tools="props.navTools"
+    @bookmarks-click="emit('bookmarksClick')"
   >
     <template v-if="slots.menu" #menu>
       <slot name="menu" />

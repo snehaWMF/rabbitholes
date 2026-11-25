@@ -193,10 +193,21 @@ function stopAndLose() {
 }
 
 function saveSession() {
-  createCollection(`${trail.value[0]} rabbit hole`, trailPages.value)
+  const saved = createCollection(`${trail.value[0]} rabbit hole`, trailPages.value)
   stopDialogOpen.value = false
   end()
-  toast.success('Your rabbit hole is saved to your saved items', { autoDismiss: true })
+  toast.success('Your rabbit hole is saved to your saved items', {
+    autoDismiss: 6000,
+    actionButton: { label: 'View', onClick: () => openSaved(saved.createdAt) },
+  })
+}
+
+/** The reader's saved items page; `justSaved` marks the rabbit hole saved a moment ago. */
+function openSaved(justSaved?: string) {
+  void router.push({
+    path: '/rabbit-hole-path/saved',
+    query: justSaved ? { saved: justSaved } : {},
+  })
 }
 
 /* Once the session ends there's no trail to look at: drop the mobile sheet back to the bar. */
@@ -245,7 +256,10 @@ function onSave() {
     toast.info(`${title} is removed from your saved items`, { autoDismiss: true })
   } else {
     savePagesToCollection([title])
-    toast.success(`${title} is saved to your saved items`, { autoDismiss: true })
+    toast.success(`${title} is saved to your saved items`, {
+      autoDismiss: 6000,
+      actionButton: { label: 'View', onClick: () => openSaved() },
+    })
   }
   savedArticles.value = collectionArticles()
 }
@@ -372,7 +386,7 @@ function onArticleClick(event: MouseEvent) {
 <template>
   <ChromeWrapper :username="USERNAME">
     <template #header>
-      <ChromeHeader :username="USERNAME" :right="minervaRight">
+      <ChromeHeader :username="USERNAME" :right="minervaRight" @bookmarks-click="openSaved()">
         <template #user-menu>
           <UserMenu
             v-model:show-trail="showTrail"
