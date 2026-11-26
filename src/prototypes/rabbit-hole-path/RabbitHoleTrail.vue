@@ -420,8 +420,12 @@ function metaFor(title: string) {
   color: var(--color-base);
 }
 
+/* Set apart from the saved path by a rule above, like a new section. */
 .rabbit-hole__start--new {
+  inline-size: 100%;
   margin-block-start: var(--spacing-75, 12px);
+  padding-block-start: var(--spacing-75, 12px);
+  border-block-start: var(--border-width-base, 1px) solid var(--border-color-subtle);
 }
 
 .rabbit-hole__start:hover {
