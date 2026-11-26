@@ -22,6 +22,8 @@ interface Props {
   ended: boolean
   /** The reader jumped to a page the last step doesn't link to; that step is the way back. */
   offPath?: boolean
+  /** The earlier step the reader went back to (selected in the trail); shown as selected. */
+  revisited?: number | null
   /** Show a "hide" button by the heading (desktop sidebar). */
   hideable?: boolean
   /** Articles in the reader's saved items — marked "saved" under their title. */
@@ -37,6 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
   saved: () => [],
   fit: true,
   offPath: false,
+  revisited: null,
   hideable: false,
   branching: false,
   heading: 'Your rabbit hole',
@@ -51,9 +54,13 @@ const emit = defineEmits<{
   share: []
 }>()
 
-/** The step the reader is on — none while they're off the path. */
+/**
+ * The step the reader is on — none while they're off the path, unless they
+ * went back to an earlier step by selecting it: that one shows as selected.
+ */
 function isHere(index: number) {
-  return index === props.current && !props.offPath
+  if (props.offPath) return props.revisited === index
+  return index === props.current
 }
 
 /*
@@ -171,7 +178,7 @@ async function fitList() {
 
 let railObserver: ResizeObserver | null = null
 
-watch(() => [props.steps.length, props.current, props.ended, props.offPath], fitList)
+watch(() => [props.steps.length, props.current, props.ended, props.offPath, props.revisited], fitList)
 onMounted(() => {
   fitList()
   window.addEventListener('resize', fitList)
@@ -287,6 +294,10 @@ function metaFor(title: string) {
             <template v-if="props.branching">
               You've veered off the path. When you're ready, select any article above to continue
               from it, or start a new path there.
+            </template>
+            <template v-else-if="props.revisited !== null">
+              You've veered back in your path. When you're ready, select the last article above to
+              continue your journey.
             </template>
             <template v-else>
               You've veered off the path. When you're ready, select the last article above to

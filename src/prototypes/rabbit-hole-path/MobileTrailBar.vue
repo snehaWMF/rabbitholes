@@ -31,6 +31,8 @@ interface Props {
   ended: boolean
   /** The reader jumped to a page the last step doesn't link to. */
   offPath?: boolean
+  /** Off the path because they went back to an earlier step in the trail. */
+  revisited?: boolean
   /** Number of steps in the trail (the start article counts as one). */
   steps: number
   /** Links from the first step to the current one. */
@@ -48,6 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
   paths: null,
   cameFrom: null,
   offPath: false,
+  revisited: false,
   heading: 'Your rabbit hole',
   savedNext: undefined,
 })
@@ -80,7 +83,7 @@ const visible = computed(() => hasSheet.value || showPathsBar.value)
 
 /* Both: the rabbit hole's side section reads "Your rabbit hole / N links deep". */
 const depthLabel = computed(() => {
-  if (props.offPath) return 'Off the path'
+  if (props.offPath) return props.revisited ? 'Back in your path' : 'Off the path'
   return `${props.depth} ${props.depth === 1 ? 'link' : 'links'} deep`
 })
 
@@ -90,7 +93,7 @@ const depthLabel = computed(() => {
  */
 const summary = computed(() => {
   if (props.ended) return 'Select Start to see your trail'
-  if (props.offPath) return "You've veered off the path"
+  if (props.offPath) return props.revisited ? "You've veered back in your path" : "You've veered off the path"
   if (props.steps <= 1) return 'Follow a link in the article to start going deeper'
   return `${props.depth} ${props.depth === 1 ? 'link' : 'links'} deep`
 })

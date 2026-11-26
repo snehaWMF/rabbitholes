@@ -144,7 +144,7 @@ function titleFromQuery(): string | null {
   return raw ? raw.replace(/_/g, ' ') : null
 }
 
-const { steps, trail, depth, current, ended, offPath, article, visit, setLinks, end, start } =
+const { steps, trail, depth, current, ended, offPath, revisited, article, visit, setLinks, end, start } =
   useRabbitHole(titleFromQuery() ?? START_ARTICLE, branching)
 
 const { paths } = useClickstream(article)
@@ -524,6 +524,7 @@ function onArticleClick(event: MouseEvent) {
             :branching="branching"
             :ended="ended"
             :off-path="offPath"
+            :revisited="revisited"
             :saved="savedArticles"
             hideable
             @revisit="revisit"
@@ -551,6 +552,7 @@ function onArticleClick(event: MouseEvent) {
       :saved-next="savedNext"
       :ended="savedHole ? false : ended"
       :off-path="savedHole ? false : offPath"
+      :revisited="!savedHole && revisited !== null"
       :steps="savedHole ? savedSteps.length : trail.length"
       :depth="savedHole ? savedLinks : depth"
       :current="article"
@@ -584,6 +586,7 @@ function onArticleClick(event: MouseEvent) {
         :branching="branching"
         :ended="ended"
         :off-path="offPath"
+        :revisited="revisited"
         :saved="savedArticles"
         :fit="false"
         @revisit="revisit"

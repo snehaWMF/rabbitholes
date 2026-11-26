@@ -28,6 +28,11 @@ export function useRabbitHole(startArticle: string, branching: Ref<boolean>) {
   const ended = ref(true)
   /** The reader is somewhere the current step doesn't link to. */
   const offPath = ref(false)
+  /**
+   * The earlier step the reader went back to by selecting it in the trail
+   * (single line only) — the path is paused there. `null` otherwise.
+   */
+  const revisited = ref<number | null>(null)
 
   /** Article to render — tracked or not. */
   const article = ref(startArticle)
@@ -60,9 +65,11 @@ export function useRabbitHole(startArticle: string, branching: Ref<boolean>) {
       if (branching.value) {
         current.value = step
         offPath.value = false
+        revisited.value = null
       } else {
         // A single line: only the last step resumes the path.
         offPath.value = step !== current.value
+        revisited.value = offPath.value ? step : null
       }
       return
     }
@@ -70,9 +77,14 @@ export function useRabbitHole(startArticle: string, branching: Ref<boolean>) {
     const here = steps.value[current.value]
     if (title === here.title) {
       offPath.value = false
+      revisited.value = null
       return
     }
-    if (offPath.value) return
+    if (offPath.value) {
+      // Moved on from the step they went back to: just off the path now.
+      if (revisited.value !== null && steps.value[revisited.value]?.title !== title) revisited.value = null
+      return
+    }
     if (!linksByPage.get(here.title)?.has(title)) {
       offPath.value = true
       return
@@ -91,6 +103,7 @@ export function useRabbitHole(startArticle: string, branching: Ref<boolean>) {
     steps.value = [{ title: article.value, parent: null }]
     current.value = 0
     offPath.value = false
+    revisited.value = null
   }
 
   /** End tracking for this session — and forget what was tracked. */
@@ -112,6 +125,7 @@ export function useRabbitHole(startArticle: string, branching: Ref<boolean>) {
     current,
     ended,
     offPath,
+    revisited,
     article,
     visit,
     setLinks,
