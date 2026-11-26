@@ -8,12 +8,15 @@ interface Props {
   paths: ArticlePaths | null
   /** The article the reader actually came from, if they followed a link here. */
   cameFrom?: string | null
+  /** Show a "hide" button by the heading (desktop sidebar). */
+  hideable?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { cameFrom: null })
+const props = withDefaults(defineProps<Props>(), { cameFrom: null, hideable: false })
 
 const emit = defineEmits<{
   go: [title: string]
+  hide: []
 }>()
 
 const topIn = computed(() => props.paths?.in?.[0]?.[0] ?? null)
@@ -29,7 +32,12 @@ const noData = computed(() => props.paths !== null && !topIn.value && !topOut.va
     space that never changes — with "No popular path found for this article" when there's no data.
   -->
   <section class="common-paths" aria-labelledby="common-paths-heading">
-    <h2 id="common-paths-heading" class="common-paths__heading">Other readers' paths</h2>
+    <h2 id="common-paths-heading" class="common-paths__heading">
+      Other readers' paths
+      <button v-if="props.hideable" type="button" class="common-paths__hide" @click="emit('hide')">
+        hide
+      </button>
+    </h2>
 
     <p v-if="noData" class="common-paths__line common-paths__line--empty">
       No popular path found for this article. You've wandered off the beaten path.
@@ -77,11 +85,34 @@ const noData = computed(() => props.paths !== null && !topIn.value && !topOut.va
 }
 
 .common-paths__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-50, 8px);
   margin: 0 0 var(--spacing-50, 8px);
   padding-block-end: var(--spacing-25, 4px);
   border-block-end: var(--border-width-base, 1px) solid var(--border-color-subtle);
   font: inherit;
   color: var(--color-subtle);
+}
+
+/* Small grey "hide" chip beside the heading, as on "Your rabbit hole". */
+.common-paths__hide {
+  padding: 0 var(--spacing-50, 8px);
+  border: 0;
+  border-radius: var(--border-radius-base, 2px);
+  background-color: var(--background-color-interactive, #eaecf0);
+  font: inherit;
+  color: var(--color-base);
+  cursor: pointer;
+}
+
+.common-paths__hide:hover {
+  background-color: var(--background-color-interactive--hover, #dadde3);
+}
+
+.common-paths__hide:focus-visible {
+  outline: 2px solid var(--color-progressive);
+  outline-offset: 2px;
 }
 
 .common-paths__line {

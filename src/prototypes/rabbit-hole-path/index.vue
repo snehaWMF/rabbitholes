@@ -528,7 +528,14 @@ function onArticleClick(event: MouseEvent) {
             @start="start"
             @hide="showTrail = false"
           />
-          <CommonPaths v-if="showPaths && !savedHole" :paths="paths" :came-from="cameFrom" @go="goTo" />
+          <CommonPaths
+            v-if="showPaths && !savedHole"
+            hideable
+            :paths="paths"
+            :came-from="cameFrom"
+            @go="goTo"
+            @hide="showPaths = false"
+          />
         </div>
       </aside>
     </div>

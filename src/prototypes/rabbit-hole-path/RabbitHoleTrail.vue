@@ -199,8 +199,9 @@ function metaFor(title: string) {
     <div class="rabbit-hole__header">
       <h2 id="rabbit-hole-heading" class="rabbit-hole__heading">
         {{ props.heading }}
+        <!-- Not while a rabbit hole is running (End is the way out then); a saved one keeps it. -->
         <button
-          v-if="props.hideable"
+          v-if="props.hideable && (props.ended || props.readonly)"
           type="button"
           class="rabbit-hole__hide"
           @click="emit('hide')"
