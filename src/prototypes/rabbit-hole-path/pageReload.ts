@@ -1,13 +1,16 @@
 /**
- * Whether this page load was a browser refresh — answered `true` at most once,
- * so moving around inside the prototype afterwards isn't mistaken for one.
+ * How the prototype page was opened, answered once per page load so that
+ * moving around inside the prototype afterwards doesn't count:
+ * - `fresh`: the browser loaded this page itself (refresh, typed URL, link,
+ *   new tab) — not reached from the saved items page inside the prototype;
+ * - `reload`: specifically the browser's refresh.
  */
 let unchecked = true
 
-export function consumeReload(): boolean {
-  if (!unchecked) return false
+export function consumePageLoad(): { fresh: boolean; reload: boolean } {
+  if (!unchecked) return { fresh: false, reload: false }
   unchecked = false
   const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
-  // Only if the page refreshed was this one (not, say, the saved items page).
-  return nav?.type === 'reload' && new URL(nav.name).pathname === window.location.pathname
+  const fresh = !!nav && new URL(nav.name).pathname === window.location.pathname
+  return { fresh, reload: fresh && nav?.type === 'reload' }
 }

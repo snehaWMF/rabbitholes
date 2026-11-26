@@ -35,7 +35,7 @@ import TableOfContents, { type TocSection } from './TableOfContents.vue'
 import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
 import { useClickstream } from './useClickstream'
-import { consumeReload } from './pageReload'
+import { consumePageLoad } from './pageReload'
 import { useRabbitHole, type Step } from './useRabbitHole'
 
 const START_ARTICLE = "Alice's Adventures in Wonderland"
@@ -131,12 +131,14 @@ const route = useRoute()
 const router = useRouter()
 
 /*
- * A browser refresh starts over: back to the main URL (first article, no
- * saved rabbit hole open), the trail off, and saved items back to just the
- * demo ones — nothing saved or followed this session is kept.
+ * Opening the prototype afresh (refresh, typed URL, a link) starts over:
+ * the trail off and saved items back to just the demo ones — nothing saved or
+ * followed this session is kept. A refresh also returns to the main URL
+ * (first article, no saved rabbit hole open).
  */
-if (consumeReload()) {
-  resetCollections()
+const pageLoad = consumePageLoad()
+if (pageLoad.fresh) resetCollections()
+if (pageLoad.reload) {
   if (route.query.article || route.query.hole) {
     const query = { ...route.query }
     delete query.article
