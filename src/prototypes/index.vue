@@ -16,6 +16,7 @@ import PlainWrapper from '@/components/PlainWrapper.vue'
 import AppearanceSettingsPanel from '@/components/settings/AppearanceSettingsPanel.vue'
 import SettingsPopover from '@/components/settings/SettingsPopover.vue'
 import UserSettingsPanel from '@/components/settings/UserSettingsPanel.vue'
+import { useConfig } from '@/composables/useConfig'
 import { useGalleryTab } from '@/composables/useGalleryTab'
 import { usePrototypeGallery } from '@/composables/usePrototypeGallery'
 import { PROTOWIKI_API_PROJECT_URL, PROTOWIKI_LICENSE_URL } from '@/config'
@@ -24,6 +25,14 @@ import { GALLERY_TABS } from '@/prototype-gallery'
 
 const router = useRouter()
 const route = useRoute()
+
+/*
+ * This site's prototypes are for logged-in readers, so the home page always
+ * opens logged in (a "Logged out" choice saved earlier is reset on load; it
+ * can still be picked again from the settings here).
+ */
+const { user } = useConfig()
+if (user.value === 'logged-out') user.value = 'new'
 const { galleryTab } = useGalleryTab()
 const { entries, webTemplateEntries, appTemplateEntries } = usePrototypeGallery(galleryTab)
 
