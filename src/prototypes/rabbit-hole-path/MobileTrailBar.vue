@@ -18,6 +18,12 @@ import type { ArticlePaths } from './useClickstream'
 interface Props {
   /** The rabbit hole's label ("Your rabbit hole", or "Saved rabbit hole" when looking at one). */
   heading?: string
+  /**
+   * Looking at a saved rabbit hole: the step after this page in it (`null` at
+   * its end). The left of the bar says where you went next instead of where
+   * most readers go. `undefined`: not looking at one, or this page isn't in it.
+   */
+  savedNext?: string | null
   /** Colour from the article's main image; without one the bar is the header's grey. */
   tint?: Tint | null
   /** Which feature's bar to show. */
@@ -43,6 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   cameFrom: null,
   offPath: false,
   heading: 'Your rabbit hole',
+  savedNext: undefined,
 })
 
 /* Only the collapsed bar takes the colour; the open sheet stays plain for reading. */
@@ -174,7 +181,19 @@ watch(open, (value) => document.body.classList.toggle('trail-sheet-open', value)
       <!-- Both: where most readers go next, and the rabbit hole in a small section on the right. -->
       <div v-if="props.mode === 'both'" v-show="!open" class="trail-bar__both">
         <p class="trail-bar__path trail-bar__both-paths">
-          <template v-if="props.paths === null" />
+          <template v-if="props.savedNext !== undefined">
+            <template v-if="props.savedNext">
+              You went next to
+              <a
+                class="trail-bar__path-link"
+                :href="`#${encodeURIComponent(props.savedNext)}`"
+                @click.prevent="emit('go', props.savedNext)"
+                >{{ props.savedNext }}</a
+              >
+            </template>
+            <template v-else>Your rabbit hole ended here</template>
+          </template>
+          <template v-else-if="props.paths === null" />
           <template v-else-if="!topOut">No popular path found for this article.</template>
           <template v-else>
             Most readers go next to

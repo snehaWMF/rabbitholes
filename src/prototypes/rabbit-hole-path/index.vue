@@ -34,6 +34,7 @@ import TableOfContents, { type TocSection } from './TableOfContents.vue'
 import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
 import { useClickstream } from './useClickstream'
+import { consumeReload } from './pageReload'
 import { useRabbitHole, type Step } from './useRabbitHole'
 
 const START_ARTICLE = "Alice's Adventures in Wonderland"
@@ -70,7 +71,9 @@ const branching = ref(false)
  * neither selected it doesn't show.
  */
 const mobileBarMode = computed<'trail' | 'paths' | 'both' | null>(() => {
-  const trailOn = showTrail.value || !!savedHole.value
+  // A saved rabbit hole uses the two-part bar: where you went next, and the hole itself.
+  if (savedHole.value) return 'both'
+  const trailOn = showTrail.value
   if (trailOn && showPaths.value) return 'both'
   if (trailOn) return 'trail'
   if (showPaths.value) return 'paths'
@@ -125,6 +128,17 @@ const sheetOpen = ref(false)
  */
 const route = useRoute()
 const router = useRouter()
+
+/*
+ * A browser refresh starts over: back to the main URL (first article, no
+ * saved rabbit hole open), with the trail off — nothing is kept between loads.
+ */
+if (consumeReload() && (route.query.article || route.query.hole)) {
+  const query = { ...route.query }
+  delete query.article
+  delete query.hole
+  void router.replace({ query })
+}
 
 function titleFromQuery(): string | null {
   const value = route.query.article
@@ -222,11 +236,10 @@ watch(ended, (value) => {
 })
 
 /** Share the trail (share sheet, or copied as a list); `false` if the reader cancelled. */
-async function shareTrail(): Promise<boolean> {
-  const lines = trail.value.map((t, i) => {
+async function shareTrail(list: Step[] = steps.value): Promise<boolean> {
+  const lines = list.map(({ title: t, parent: from }, i) => {
     const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}`
-    const from = steps.value[i].parent
-    const via = from !== null && from !== i - 1 ? ` (from ${trail.value[from]})` : ''
+    const via = from !== null && from !== i - 1 ? ` (from ${list[from].title})` : ''
     return `${i + 1}. ${t}${via} — ${url}`
   })
   const text = `My Wikipedia rabbit hole:\n${lines.join('\n')}`
@@ -288,6 +301,16 @@ const savedCurrent = computed(() => savedHole.value?.articles.indexOf(article.va
 const savedLinks = computed(() =>
   savedHole.value ? (savedHole.value.links ?? savedHole.value.articles.length - 1) : 0,
 )
+
+/* The step after this one in the saved rabbit hole (`null` at its end; `undefined` if this page isn't in it). */
+const savedNext = computed(() => {
+  if (!savedHole.value || savedCurrent.value < 0) return undefined
+  return savedHole.value.articles[savedCurrent.value + 1] ?? null
+})
+
+function shareSaved() {
+  void shareTrail(savedSteps.value)
+}
 
 function openSavedStep(index: number) {
   if (savedHole.value) goTo(savedHole.value.articles[index])
@@ -474,6 +497,7 @@ function onArticleClick(event: MouseEvent) {
             :saved="savedArticles"
             @revisit="openSavedStep"
             @hide="closeSavedHole"
+            @share="shareSaved"
           />
           <RabbitHoleTrail
             v-else-if="showTrail"
@@ -490,7 +514,7 @@ function onArticleClick(event: MouseEvent) {
             @start="start"
             @hide="showTrail = false"
           />
-          <CommonPaths v-if="showPaths" :paths="paths" :came-from="cameFrom" @go="goTo" />
+          <CommonPaths v-if="showPaths && !savedHole" :paths="paths" :came-from="cameFrom" @go="goTo" />
         </div>
       </aside>
     </div>
@@ -500,6 +524,7 @@ function onArticleClick(event: MouseEvent) {
       v-model:open="sheetOpen"
       :mode="mobileBarMode"
       :heading="savedHole ? 'Saved rabbit hole' : undefined"
+      :saved-next="savedNext"
       :ended="savedHole ? false : ended"
       :off-path="savedHole ? false : offPath"
       :steps="savedHole ? savedSteps.length : trail.length"
@@ -524,6 +549,7 @@ function onArticleClick(event: MouseEvent) {
         :fit="false"
         @revisit="openSavedStep"
         @hide="closeSavedHole"
+        @share="shareSaved"
       />
       <RabbitHoleTrail
         v-else

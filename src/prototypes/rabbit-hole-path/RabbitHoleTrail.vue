@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { CdxIcon } from '@wikimedia/codex'
-import { cdxIconPlay, cdxIconStop } from '@wikimedia/codex-icons'
+import { cdxIconPlay, cdxIconShare, cdxIconStop } from '@wikimedia/codex-icons'
 
 import type { Step } from './useRabbitHole'
 
@@ -48,6 +48,7 @@ const emit = defineEmits<{
   end: []
   start: []
   hide: []
+  share: []
 }>()
 
 /** The step the reader is on — none while they're off the path. */
@@ -259,12 +260,18 @@ function metaFor(title: string) {
           <span class="rabbit-hole__marker" aria-hidden="true" />
 
           <span v-if="row.kind === 'step'" class="rabbit-hole__text">
-            <span v-if="isHere(row.index)" class="rabbit-hole__label" aria-current="page">
+            <!-- A saved rabbit hole keeps every step a link, the current one marked by its dot. -->
+            <span
+              v-if="isHere(row.index) && !props.readonly"
+              class="rabbit-hole__label"
+              aria-current="page"
+            >
               {{ row.title }}
             </span>
             <a
               v-else
               class="rabbit-hole__label"
+              :aria-current="isHere(row.index) ? 'page' : undefined"
               :href="`#${encodeURIComponent(row.title)}`"
               @click.prevent="emit('revisit', row.index)"
             >
@@ -293,6 +300,16 @@ function metaFor(title: string) {
       </ol>
       <p v-if="props.steps.length > 1" class="rabbit-hole__depth">
         {{ props.depth }} {{ props.depth === 1 ? 'link' : 'links' }} deep
+        <button
+          v-if="props.readonly"
+          type="button"
+          class="rabbit-hole__share"
+          aria-label="Share this rabbit hole"
+          title="Share this rabbit hole"
+          @click="emit('share')"
+        >
+          <CdxIcon :icon="cdxIconShare" size="small" />
+        </button>
       </p>
     </template>
   </nav>
@@ -530,6 +547,30 @@ a.rabbit-hole__label {
 
 a.rabbit-hole__label:hover {
   text-decoration: underline;
+}
+
+/* A small, quiet icon button beside "N links deep" (saved rabbit holes). */
+.rabbit-hole__share {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--border-radius-base, 2px);
+  background: none;
+  color: var(--color-subtle);
+  cursor: pointer;
+}
+
+.rabbit-hole__share:hover {
+  color: var(--color-base);
+  background-color: var(--background-color-interactive-subtle);
+}
+
+.rabbit-hole__share:focus-visible {
+  outline: 2px solid var(--color-progressive);
+}
+
+.rabbit-hole__share .cdx-icon {
+  color: inherit;
 }
 
 .rabbit-hole__depth {
