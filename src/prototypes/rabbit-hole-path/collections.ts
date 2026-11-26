@@ -49,6 +49,16 @@ function seedCollections(): Collection[] {
   ]
 }
 
+/** Back to just the demo items: anything saved this session is dropped. */
+export function resetCollections() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seedCollections()))
+    localStorage.setItem(SEED_KEY, SEED_VERSION)
+  } catch {
+    // Blocked storage — nothing to reset.
+  }
+}
+
 export function loadCollections(): Collection[] {
   try {
     if (localStorage.getItem(SEED_KEY) !== SEED_VERSION) {

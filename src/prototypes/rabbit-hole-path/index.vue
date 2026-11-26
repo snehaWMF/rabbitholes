@@ -24,6 +24,7 @@ import {
   createCollection,
   loadCollections,
   removePageFromCollection,
+  resetCollections,
   SAVED_PAGES_COLLECTION,
   savePagesToCollection,
 } from './collections'
@@ -131,13 +132,17 @@ const router = useRouter()
 
 /*
  * A browser refresh starts over: back to the main URL (first article, no
- * saved rabbit hole open), with the trail off — nothing is kept between loads.
+ * saved rabbit hole open), the trail off, and saved items back to just the
+ * demo ones — nothing saved or followed this session is kept.
  */
-if (consumeReload() && (route.query.article || route.query.hole)) {
-  const query = { ...route.query }
-  delete query.article
-  delete query.hole
-  void router.replace({ query })
+if (consumeReload()) {
+  resetCollections()
+  if (route.query.article || route.query.hole) {
+    const query = { ...route.query }
+    delete query.article
+    delete query.hole
+    void router.replace({ query })
+  }
 }
 
 function titleFromQuery(): string | null {
