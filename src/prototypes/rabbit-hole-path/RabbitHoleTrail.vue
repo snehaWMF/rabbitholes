@@ -311,6 +311,16 @@ function metaFor(title: string) {
           <CdxIcon :icon="cdxIconShare" size="small" />
         </button>
       </p>
+      <!-- Looking at a saved rabbit hole: start a fresh one of your own from here. -->
+      <button
+        v-if="props.readonly"
+        type="button"
+        class="rabbit-hole__start rabbit-hole__start--new"
+        @click="emit('start')"
+      >
+        <CdxIcon :icon="cdxIconPlay" size="small" />
+        Start a new rabbit hole
+      </button>
     </template>
   </nav>
 </template>
@@ -408,6 +418,10 @@ function metaFor(title: string) {
 
 .rabbit-hole__start .cdx-icon {
   color: var(--color-base);
+}
+
+.rabbit-hole__start--new {
+  margin-block-start: var(--spacing-75, 12px);
 }
 
 .rabbit-hole__start:hover {

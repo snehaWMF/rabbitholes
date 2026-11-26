@@ -323,6 +323,12 @@ function openSavedStep(index: number) {
   if (savedHole.value) goTo(savedHole.value.articles[index])
 }
 
+/* "Start a new rabbit hole" under a saved one: close it and start yours from this article. */
+function startFromSaved() {
+  closeSavedHole()
+  start()
+}
+
 function closeSavedHole() {
   const query = { ...route.query }
   delete query.hole
@@ -505,6 +511,7 @@ function onArticleClick(event: MouseEvent) {
             @revisit="openSavedStep"
             @hide="closeSavedHole"
             @share="shareSaved"
+            @start="startFromSaved"
           />
           <RabbitHoleTrail
             v-else-if="showTrail"
@@ -557,6 +564,7 @@ function onArticleClick(event: MouseEvent) {
         @revisit="openSavedStep"
         @hide="closeSavedHole"
         @share="shareSaved"
+        @start="startFromSaved"
       />
       <RabbitHoleTrail
         v-else
