@@ -18,9 +18,12 @@ import SpecialPageWrapper from '@/components/SpecialPageWrapper.vue'
 
 import { articleSummary } from '../articleSummary'
 import { loadCollections, SAVED_PAGES_COLLECTION } from '../collections'
+import { useAlwaysLoggedIn } from '../useLoggedIn'
 
 const USERNAME = 'Username'
 const NAV_TOOLS: ChromeNavTool[] = ['appearance', 'notifications', 'notices', 'bookmarks', 'user']
+
+useAlwaysLoggedIn()
 
 const route = useRoute()
 const router = useRouter()

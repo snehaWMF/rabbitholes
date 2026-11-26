@@ -36,29 +36,20 @@ import { mainImage, tintFromImage, type Tint } from './imageColor'
 import UserMenu from './UserMenu.vue'
 import { useClickstream } from './useClickstream'
 import { consumePageLoad } from './pageReload'
+import { useAlwaysLoggedIn } from './useLoggedIn'
 import { useRabbitHole, type Step } from './useRabbitHole'
 
 const START_ARTICLE = "Alice's Adventures in Wonderland"
 
-const { user, webSkin } = useConfig()
+const { webSkin } = useConfig()
 /*
  * The layout follows the window: phone layout when narrow, desktop when wide.
  * A `?skin=` link saves a fixed skin for the whole site, which would stop it
  * switching when the window is resized, so this prototype resets it to auto.
  */
 if (webSkin.value !== 'auto') webSkin.value = 'auto'
-/*
- * The trail is a logged-in reader feature, so this prototype always shows a
- * logged-in reader. A "Logged out" choice saved by another prototype on the
- * same site would otherwise hide the sidebar.
- */
-watch(
-  user,
-  (value) => {
-    if (value === 'logged-out') user.value = 'new'
-  },
-  { immediate: true },
-)
+/* The trail is a logged-in reader feature: the prototype always shows a logged-in reader. */
+const user = useAlwaysLoggedIn()
 const isLoggedIn = computed(() => user.value !== 'logged-out')
 
 /* Prototype settings: show or hide each module. Both show on every load. */
