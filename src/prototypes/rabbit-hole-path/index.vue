@@ -325,8 +325,20 @@ function openSavedStep(index: number) {
 
 /* "Start a new rabbit hole" under a saved one: close it and start yours from this article. */
 function startFromSaved() {
+  showTrail.value = true
   closeSavedHole()
   start()
+}
+
+/*
+ * "hide" on a saved rabbit hole just hides it: the sidebar is left empty
+ * rather than filling up with the reader's own rabbit hole or other readers'
+ * paths (both can be turned back on in prototype settings).
+ */
+function hideSavedHole() {
+  showTrail.value = false
+  showPaths.value = false
+  closeSavedHole()
 }
 
 function closeSavedHole() {
@@ -509,7 +521,7 @@ function onArticleClick(event: MouseEvent) {
             :ended="false"
             :saved="savedArticles"
             @revisit="openSavedStep"
-            @hide="closeSavedHole"
+            @hide="hideSavedHole"
             @share="shareSaved"
             @start="startFromSaved"
           />
@@ -569,7 +581,7 @@ function onArticleClick(event: MouseEvent) {
         :saved="savedArticles"
         :fit="false"
         @revisit="openSavedStep"
-        @hide="closeSavedHole"
+        @hide="hideSavedHole"
         @share="shareSaved"
         @start="startFromSaved"
       />
